@@ -63,15 +63,15 @@ PROGRAM BoneOptimisation
   REAL(OC_RP), PARAMETER :: PI=3.141592653589793238462643383279502884197_OC_RP 
  
   !Geomery
-  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_DIMENSIONS = 3 !The number of dimensions
+  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_DIMENSIONS = 2 !The number of dimensions
   
   REAL(OC_RP), PARAMETER :: LENGTH = 12.50_OC_RP !The length of the domain 
   REAL(OC_RP), PARAMETER :: HEIGHT = 10.00_OC_RP !The height of the domain
   REAL(OC_RP), PARAMETER :: WIDTH = 10.00_OC_RP !The height of the domain
   
-  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_X_ELEMENTS = 20 !Number of elements along the length of the domain
-  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_Y_ELEMENTS = 12 !Number of elements along the height of the domain
-  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_Z_ELEMENTS = 12 !Number of elements along the width of the domain
+  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_X_ELEMENTS = 10 !Number of elements along the length of the domain
+  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_Y_ELEMENTS = 6 !Number of elements along the height of the domain
+  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_Z_ELEMENTS = 6 !Number of elements along the width of the domain
 
   !Loading case
   INTEGER(OC_Intg), PARAMETER :: CANTILEVER_LOADING_CASE = 1
@@ -1233,7 +1233,7 @@ PROGRAM BoneOptimisation
   
   ! WRITE(*,*) KE
 
-  !CALL PrintArrayNodeRP(phiValues,1,"Phi")
+  CALL PrintArrayNodeRP(phiValues,1,"Phi")
          
   !Loop over the iterations
   time = TIME_START    
@@ -1248,8 +1248,8 @@ PROGRAM BoneOptimisation
 
     CALL OC_Problem_Solve(elasticityProblem,err)
 
-    !CALL PrintArrayNodeRP(elasticityValues,1,"u")
-    !CALL PrintArrayNodeRP(elasticityValues,2,"v")
+    CALL PrintArrayNodeRP(elasticityValues,1,"u")
+    CALL PrintArrayNodeRP(elasticityValues,2,"v")
     
     !-----------------------------------------------------------------------------------------------------------
     ! ELASTICITY DERIVED
@@ -1259,9 +1259,9 @@ PROGRAM BoneOptimisation
     CALL OC_EquationsSet_DerivedVariableCalculate(elasticityEquationsSet,OC_EQUATIONS_SET_DERIVED_CAUCHY_STRESS,err)
     CALL OC_EquationsSet_DerivedVariableCalculate(elasticityEquationsSet,OC_EQUATIONS_SET_DERIVED_ELASTIC_WORK,err)
      
-    !CALL PrintArrayElementRP(strainValues,1,"e11")
-    !CALL PrintArrayElementRP(strainValues,2,"e22")
-    !CALL PrintArrayElementRP(strainValues,3,"e12")
+    CALL PrintArrayElementRP(strainValues,1,"e11")
+    CALL PrintArrayElementRP(strainValues,2,"e22")
+    CALL PrintArrayElementRP(strainValues,3,"e12")
     
     !-----------------------------------------------------------------------------------------------------------
     ! ELASTICITY OPTIMISATION PARAMETERS
@@ -1378,16 +1378,15 @@ PROGRAM BoneOptimisation
     CALL MPI_Allreduce(rankAbsTDSum,absTDSum,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD,mpiIError)
 #endif
     
-    WRITE(*,'("sumTDN = ",E12.5)') tdSum
+    !WRITE(*,'("sumTDN = ",E12.5)') tdSum
     
-    !TODO: reduce the values across the ranks
     volumeRatio = strSum/REAL(NUMBER_OF_ELEMENTS,OC_RP)    
     objective(iterationIdx)=objectiveSum
    
-    !CALL PrintArrayElementRP(strainEnergyValues,1,"SE")
-    !CALL PrintArrayElementRP(sedValues,1,"SED")
-    !CALL PrintArrayElementRP(tdValues,1,"TD")
-    !CALL PrintArrayNodeRP(tdnValues,1,"TDN")
+    CALL PrintArrayElementRP(strainEnergyValues,1,"SE")
+    CALL PrintArrayElementRP(sedValues,1,"SED")
+    CALL PrintArrayElementRP(tdValues,1,"TD")
+    CALL PrintArrayNodeRP(tdnValues,1,"TDN")
     
     !-----------------------------------------------------------------------------------------------------------
     ! CALCULATE AUGMENTED LAGRANGIAN PARAMETERS
@@ -1422,7 +1421,7 @@ PROGRAM BoneOptimisation
     CALL OC_Field_ParameterSetUpdateStart(diffusionSourceField,OC_FIELD_U_VARIABLE_TYPE,OC_FIELD_VALUES_SET_TYPE,err)
     CALL OC_Field_ParameterSetUpdateFinish(diffusionSourceField,OC_FIELD_U_VARIABLE_TYPE,OC_FIELD_VALUES_SET_TYPE,err)
     
-    !CALL PrintArrayNodeRP(diffusionSourceValues,1,"Diffusion source")
+    CALL PrintArrayNodeRP(diffusionSourceValues,1,"Diffusion source")
       
     !-----------------------------------------------------------------------------------------------------------
     ! DIFFUSION SOLVE
@@ -1432,7 +1431,7 @@ PROGRAM BoneOptimisation
     
     CALL OC_Problem_Solve(diffusionProblem,err)
 
-    !CALL PrintArrayNodeRP(phiValues,1,"Phi")
+    CALL PrintArrayNodeRP(phiValues,1,"Phi")
          
     !-----------------------------------------------------------------------------------------------------------
     ! RECALCULATE THE NEW STRUCUTRE FIELD AND VOLUME
@@ -1488,9 +1487,9 @@ PROGRAM BoneOptimisation
     CALL OC_Field_ParameterSetUpdateFinish(structureField,OC_FIELD_U_VARIABLE_TYPE,OC_FIELD_VALUES_SET_TYPE,err)
     CALL OC_Field_ParameterSetUpdateFinish(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE,OC_FIELD_VALUES_SET_TYPE,err)
       
-    !CALL PrintArrayNodeRP(phiValues,1,"Phi")         
-    !CALL PrintArrayElementIntg(structureValues,1,"Str")
-    !CALL PrintArrayElementRP(ymValues,1,"E")
+    CALL PrintArrayNodeRP(phiValues,1,"Phi")         
+    CALL PrintArrayElementIntg(structureValues,1,"Str")
+    CALL PrintArrayElementRP(ymValues,1,"E")
       
     !-----------------------------------------------------------------------------------------------------------
     ! OUTPUT

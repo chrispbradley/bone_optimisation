@@ -40,33 +40,29 @@ def PrintArrayElement(a,component,name):
 
 # Geometric parameters
 
+LENGTH = 12.5 # mm
 HEIGHT = 10.0 # mm
 WIDTH = 10.0 # mm
-LENGTH = 20.0 # mm
 
 # Loading case
-
 CANTILEVER_LOADING_CASE = 1
 SIMPLY_SUPPORTED_LOADING_CASE = 2
 
-# Elasticity parameters
+# Boundary condition 
+MAX_FORCE = 0.6666 # N.mm^-2
 
+# Elasticity parameters
 YOUNGS_MODULUS = 1.0 # mg.mm^-1.ms^-2
 YOUNGS_MODULUS_MIN = 0.000001 # mg.mm^-1.ms^-2
 POISSONS_RATIO = 0.3
 THICKNESS = 1.0 # mm (for plane strain and stress)
 
-# Boundary condition 
-MAX_FORCE = 0.6666 # N.mm^-2
-
 # Diffusion parameters
-
 DIFFUSION_A_PARAM = 1.0
 DIFFUSION_TAU_PARAM = 0.001 # Stabilisation parameter
 
 # Optimisation parameters
-
-MAX_VOLUME_FRACTION = 0.50
+MAX_VOLUME_RATIO = 0.50
 LEVEL_SET_P_PARAM = 4
 LEVEL_SET_D_PARAM = -0.02
 N_VOL_ITERATIONS = 100
@@ -148,7 +144,6 @@ if (NUMBER_OF_Z_ELEMENTS < 0):
 
 if (NUMBER_OF_Z_ELEMENTS == 0):
     NUMBER_OF_DIMENSIONS = 2
-    NUMBER_OF_Z_ELEMENTS = 1
 else:
     NUMBER_OF_DIMENSIONS = 3
 
@@ -195,14 +190,15 @@ if (HAVE_SIMPLEX):
     ELEMENT_FACTOR = 2
 else:
     ELEMENT_FACTOR = 1
-NUMBER_OF_ELEMENTS = NUMBER_OF_X_ELEMENTS*NUMBER_OF_Y_ELEMENTS*NUMBER_OF_Z_ELEMENTS*ELEMENT_FACTOR
 NUMBER_OF_X_NODES = NUMBER_OF_X_ELEMENTS*(NUMBER_OF_NODES_XI-1)+1
 NUMBER_OF_Y_NODES = NUMBER_OF_Y_ELEMENTS*(NUMBER_OF_NODES_XI-1)+1
 if (NUMBER_OF_DIMENSIONS == 2):
-    NUMBER_OF_Z_NODES = 1
+    NUMBER_OF_ELEMENTS = NUMBER_OF_X_ELEMENTS*NUMBER_OF_Y_ELEMENTS*ELEMENT_FACTOR
+    NUMBER_OF_NODES = NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
 else:
+    NUMBER_OF_ELEMENTS = NUMBER_OF_X_ELEMENTS*NUMBER_OF_Y_ELEMENTS*NUMBER_OF_Z_ELEMENTS*ELEMENT_FACTOR
     NUMBER_OF_Z_NODES = NUMBER_OF_Z_ELEMENTS*(NUMBER_OF_NODES_XI-1)+1
-NUMBER_OF_NODES = NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES*NUMBER_OF_Z_NODES
+    NUMBER_OF_NODES = NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES*NUMBER_OF_Z_NODES
 NUMBER_OF_XI = NUMBER_OF_DIMENSIONS
 if (not HAVE_SIMPLEX):
     NUMBER_OF_GAUSS = pow(NUMBER_OF_GAUSS_XI,NUMBER_OF_XI)
@@ -214,7 +210,7 @@ LAME_MU_MIN = YOUNGS_MODULUS_MIN/(2.0*(1.0-POISSONS_RATIO))
 
 print("nelx = ",NUMBER_OF_X_ELEMENTS)
 print("nely = ",NUMBER_OF_Y_ELEMENTS)
-print("Vmax = ",MAX_VOLUME_FRACTION)
+print("Vmax = ",MAX_VOLUME_RATIO)
 print("tau = ",DIFFUSION_TAU_PARAM)
       
 #-----------------------------------------------------------------------------------------------------------
@@ -577,7 +573,7 @@ elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.NONE)
 #elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.PROGRESS)
 #elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.TIMING)
 #elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.SOLVER)
-elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.MATRIX)
+#elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.MATRIX)
 elasticitySolver.LinearTypeSet(oc.LinearSolverTypes.DIRECT)
 #elasticitySolver.LinearTypeSet(oc.LinearSolverTypes.ITERATIVE)
 #elasticitySolver.LinearIterativeMaximumIterationsSet(1000000)
@@ -1244,7 +1240,6 @@ while continueLoop:
     rankAbsTDSum = 0.0
     for nodeIdx in range(1,numberOfLocalNodes+1):
         nodeNumber = decomposition.NodeNumberGet(1,nodeIdx)
-        print("Node number = ",nodeNumber)
         # Loop over the elements surrounding the node to determine the average
         averageTD = 0.0
         numberOfSurroundingElements = decomposition.NodeNumberOfSurroundingElementsGet(1,nodeNumber)
@@ -1253,34 +1248,38 @@ while continueLoop:
             
             topologicalDerivative = tdField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
                                                                      surroundingElementNumber,1)
-            print("Surrounding element = ",surroundingElementNumber)
-            print("Topological derivative = ",topologicalDerivative)
             averageTD = averageTD + topologicalDerivative
             
         averageTD = averageTD/float(numberOfSurroundingElements)
         # Set the topological derivative at the node
-        print("About to set the tdfield")
         tdField.ParameterSetUpdateNodeDP(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES,1, \
                                          oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,averageTD)
         # Update sums
         rankTDSum = rankTDSum + averageTD
-        rankAbsTDSum =rankAbsTDSum + abs(averageTD)
+        rankAbsTDSum = rankAbsTDSum + abs(averageTD)
         
     #Reduce objective, volume etc. sums across the ranks
     tdSum = MPI.COMM_WORLD.allreduce(rankTDSum,op=MPI.SUM)
     absTDSum = MPI.COMM_WORLD.allreduce(rankAbsTDSum,op=MPI.SUM)
    
+    tdnValues = tdField.ParameterSetDataGet(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES)
+    PrintArrayNode(tdnValues,1,"TDN")
+    
     #-----------------------------------------------------------------------------------------------------------
     # CALCULATE AUGMENTED LAGRANGIAN PARAMETERS
     #-----------------------------------------------------------------------------------------------------------
 
-    maximumG = MAX_VOLUME_FRACTION+(initialVolume-MAX_VOLUME_FRACTION)*max(0,1-iterationNumber/N_VOL_ITERATIONS)
+    print("Current volume ratio = ",volumeRatio)
+    print("Topological derivative sum = ",tdSum)
+    print("ABS topological derivative sum = ",absTDSum)
+          
+    maximumG = MAX_VOLUME_RATIO+(initialVolume-MAX_VOLUME_RATIO)*max(0,1-iterationNumber/N_VOL_ITERATIONS)
     print("Max G = ",maximumG)
     G = volumeRatio - maximumG
     print("G = ",G)
-    lambdaValue = tdSum/float(NUMBER_OF_ELEMENTS)*math.exp(LEVEL_SET_P_PARAM*(G/maximumG+LEVEL_SET_D_PARAM))
+    lambdaValue = tdSum/float(NUMBER_OF_NODES)*math.exp(LEVEL_SET_P_PARAM*(G/maximumG+LEVEL_SET_D_PARAM))
     print("lambda = ",lambdaValue)
-    C = float(NUMBER_OF_ELEMENTS)/absTDSum
+    C = float(NUMBER_OF_NODES)/absTDSum
     print("C = ",C)
 
     # Update the diffusion source to be C*topologicalDerivative - lambda
@@ -1288,7 +1287,7 @@ while continueLoop:
         nodeNumber = decomposition.NodeNumberGet(1,nodeIdx)
         topologicalDerivative = tdField.ParameterSetGetNodeDP(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES,1,
                                                               oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1)
-        diffusionSourceValue = C*topologicalDerivative - lambdaValue
+        diffusionSourceValue = C*(topologicalDerivative - lambdaValue)
         diffusionSourceField.ParameterSetUpdateNodeDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,1, \
                                                       oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1, \
                                                       -diffusionSourceValue)

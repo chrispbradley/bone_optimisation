@@ -1,5 +1,5 @@
 $name = "BoneOptimisation";
-$numberOfProcessors = 4;
+$numberOfProcessors = 1;
 $numberOfIterations = 200;
 
 
@@ -66,4 +66,3 @@ for($iteration=1; $iteration < $numberOfIterations; $iteration=$iteration+1)
   	print "Writing $filename\n";
 	gfx print file $filename jpg window 1 height 1000 width 1000;
 	}
-}
