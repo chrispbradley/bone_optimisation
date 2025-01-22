@@ -10,7 +10,7 @@
 
 import sys,os,math
 import numpy as np
-import mpi4py as MPI
+from mpi4py import MPI
 
 # Intialise OpenCMISS
 from opencmiss.opencmiss import OpenCMISS_Python as oc
@@ -122,7 +122,7 @@ INTERPOLATION_TYPE = LINEAR_LAGRANGE
  TD_FIELD_USER_NUMBER,
  ELASTICITY_PROBLEM_USER_NUMBER,
  DIFFUSION_PROBLEM_USER_NUMBER
- ) = range(1,26)
+ ) = range(1,25)
 
 # Override defaults with command line arguments if need be
 if len(sys.argv) > 1:
@@ -140,11 +140,11 @@ if len(sys.argv) > 1:
 
 # Check parameters
 if (NUMBER_OF_X_ELEMENTS <= 1):
-    sys.exit('ERROR: number of X elements must be greater than 1.')
+    sys.exit('ERROR: number of X elements must be > 1.')
 if (NUMBER_OF_Y_ELEMENTS <= 1):
-    sys.exit('ERROR: number of Y elements must be greater than 1.')
-if (NUMBER_OF_Z_ELEMENTS <= 0):
-    sys.exit('ERROR: number of Z elements must be greater than 0.')
+    sys.exit('ERROR: number of Y elements must be > 1.')
+if (NUMBER_OF_Z_ELEMENTS < 0):
+    sys.exit('ERROR: number of Z elements must be >= 0.')
 
 if (NUMBER_OF_Z_ELEMENTS == 0):
     NUMBER_OF_DIMENSIONS = 2
@@ -210,7 +210,7 @@ if (not HAVE_SIMPLEX):
 LAME_LAMBDA = POISSONS_RATIO*YOUNGS_MODULUS/((1.0-POISSONS_RATIO)*(1.0-2.0*POISSONS_RATIO))
 LAME_MU = YOUNGS_MODULUS/(2.0*(1.0-POISSONS_RATIO))
 LAME_LAMBDA_MIN = POISSONS_RATIO*YOUNGS_MODULUS_MIN/((1.0-POISSONS_RATIO)*(1.0-2.0*POISSONS_RATIO))
-LAME_MU_MIN = YOUNGS_MODULUS_MIN/(2.0_OC_RP*(1.0_OC_RP-POISSONS_RATIO))
+LAME_MU_MIN = YOUNGS_MODULUS_MIN/(2.0*(1.0-POISSONS_RATIO))
 
 print("nelx = ",NUMBER_OF_X_ELEMENTS)
 print("nely = ",NUMBER_OF_Y_ELEMENTS)
@@ -249,13 +249,13 @@ computationEnvironment.WorldWorkGroupGet(worldWorkGroup)
 #-----------------------------------------------------------------------------------------------------------
 
 numberOfVoigtComponents = oc.NumberOfVoigtComponentsGet(NUMBER_OF_DIMENSIONS)
-voigt11Component = oc.TensorComponentsToVoigtComponentsGet(NUMBER_OF_DIMENSIONS,1,1)
-voigt12Component = oc.TensorComponentsToVoigtComponentsGet(NUMBER_OF_DIMENSIONS,1,2)
-voigt22Component = oc.TensorComponentsToVoigtComponentsGet(NUMBER_OF_DIMENSIONS,2,2)
-if (NUMBER_OF_DIMENSIONS == 2):
-    voigt13Component = oc.TensorComponentsToVoigtComponentsGet(NUMBER_OF_DIMENSIONS,1,3)
-    voigt23Component = oc.TensorComponentsToVoigtComponentsGet(NUMBER_OF_DIMENSIONS,2,3)
-    voigt33Component = oc.TensorComponentsToVoigtComponentsGet(NUMBER_OF_DIMENSIONS,3,3)    
+voigt11Component = oc.TensorComponentsToVoigtComponentGet(NUMBER_OF_DIMENSIONS,1,1)
+voigt12Component = oc.TensorComponentsToVoigtComponentGet(NUMBER_OF_DIMENSIONS,1,2)
+voigt22Component = oc.TensorComponentsToVoigtComponentGet(NUMBER_OF_DIMENSIONS,2,2)
+if (NUMBER_OF_DIMENSIONS == 3):
+    voigt13Component = oc.TensorComponentsToVoigtComponentGet(NUMBER_OF_DIMENSIONS,1,3)
+    voigt23Component = oc.TensorComponentsToVoigtComponentGet(NUMBER_OF_DIMENSIONS,2,3)
+    voigt33Component = oc.TensorComponentsToVoigtComponentGet(NUMBER_OF_DIMENSIONS,3,3)    
 
 #-----------------------------------------------------------------------------------------------------------
 # COORDINATE SYSTEM
@@ -577,7 +577,7 @@ elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.NONE)
 #elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.PROGRESS)
 #elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.TIMING)
 #elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.SOLVER)
-#elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.MATRIX)
+elasticitySolver.OutputTypeSet(oc.SolverOutputTypes.MATRIX)
 elasticitySolver.LinearTypeSet(oc.LinearSolverTypes.DIRECT)
 #elasticitySolver.LinearTypeSet(oc.LinearSolverTypes.ITERATIVE)
 #elasticitySolver.LinearIterativeMaximumIterationsSet(1000000)
@@ -628,10 +628,10 @@ if (LOADING_CASE == CANTILEVER_LOADING_CASE):
         if (nodeDomain == computationalNodeNumber):
             #Downward force at the node
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,1,
                                                  oc.BoundaryConditionsTypes.FIXED,0.0)
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,2,
                                                  oc.BoundaryConditionsTypes.FIXED,-MAX_FORCE)
             
     else:
@@ -640,6 +640,7 @@ if (LOADING_CASE == CANTILEVER_LOADING_CASE):
         for zNodeIdx in range(1,NUMBER_OF_Z_NODES+1):
             for yNodeIdx in range(1,NUMBER_OF_Y_NODES+1):
                 nodeNumber = 1+(yNodeIdx-1)*NUMBER_OF_X_NODES+(zNodeIdx-1)*NUMBER_OF_X_NODES*NUMBER_OF_Z_NODES
+                nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
                 if (nodeDomain == computationalNodeNumber):
                     #Fix the node in the x, y & z directions
                     elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
@@ -659,13 +660,13 @@ if (LOADING_CASE == CANTILEVER_LOADING_CASE):
         if (nodeDomain == computationalNodeNumber):
             #Downward force at the node
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,1,
                                                  oc.BoundaryConditionsTypes.FIXED,0.0)
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,2,
                                                  oc.BoundaryConditionsTypes.FIXED,-MAX_FORCE)            
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,3,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,3,
                                                  oc.BoundaryConditionsTypes.FIXED,0.0)
        
 else:
@@ -716,10 +717,10 @@ else:
         if (nodeDomain == computationalNodeNumber):
             #Downward force at the node
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,1,
                                                  oc.BoundaryConditionsTypes.FIXED,0.0)
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,2,
                                                  oc.BoundaryConditionsTypes.FIXED,-MAX_FORCE)
     else:
 
@@ -874,13 +875,13 @@ else:
         if (nodeDomain == computationalNodeNumber):
             #Downward force at the node
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,1,
                                                  oc.BoundaryConditionsTypes.FIXED,0.0)
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,2,
                                                  oc.BoundaryConditionsTypes.FIXED,-MAX_FORCE)            
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,3,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,3,
                                                  oc.BoundaryConditionsTypes.FIXED,0.0)
 
 elasticitySolverEquations.BoundaryConditionsCreateFinish()
@@ -966,7 +967,7 @@ diffusionSolverEquations.BoundaryConditionsCreateFinish()
 #-----------------------------------------------------------------------------------------------------------
 
 structureField = oc.Field()
-structureField.CreateStart(DIFFUSION_STRUCTURE_FIELD_USER_NUMBER,region)
+structureField.CreateStart(STRUCTURE_FIELD_USER_NUMBER,region)
 # Set the type
 structureField.TypeSet(oc.FieldTypes.GENERAL)
 # Set the decomposition
@@ -1030,7 +1031,7 @@ tdField.NumberOfComponentsSet(oc.FieldVariableTypes.V,1)
 tdField.ComponentMeshComponentSet(oc.FieldVariableTypes.U,1,1)
 tdField.ComponentMeshComponentSet(oc.FieldVariableTypes.V,1,1)
 tdField.ComponentInterpolationSet(oc.FieldVariableTypes.U,1,oc.FieldInterpolationTypes.ELEMENT_BASED)
-tdField.ComponentInterpolationSet(oc.FieldVariableTypes.V,1,oc.FieldInterpolationTypes.ELEMENT_BASED)
+tdField.ComponentInterpolationSet(oc.FieldVariableTypes.V,1,oc.FieldInterpolationTypes.NODE_BASED)
 tdField.CreateFinish()
 
 #-----------------------------------------------------------------------------------------------------------
@@ -1062,8 +1063,8 @@ time = TIME_START
 continueLoop = True
 
 #Topological derivative constants 
-A1 = -(3.0*(1.0-POISSONS_RATIO)*(1.0-14.0*POISSONS_RATIO+15.0*POISSONS_RATIO*POISSONS_RATIO))*YOUNGS_MODULUS/ &
-& (2.0*(1.0+POISSONS_RATIO)*(7.0-5.0*POISSONS_RATIO)*(1.0-2.0*POISSONS_RATIO)*(1.0-2.0*POISSONS_RATIO))
+A1 = -(3.0*(1.0-POISSONS_RATIO)*(1.0-14.0*POISSONS_RATIO+15.0*POISSONS_RATIO*POISSONS_RATIO))*YOUNGS_MODULUS/ \
+    (2.0*(1.0+POISSONS_RATIO)*(7.0-5.0*POISSONS_RATIO)*(1.0-2.0*POISSONS_RATIO)*(1.0-2.0*POISSONS_RATIO))
 A2 = (15.0*YOUNGS_MODULUS*(1.0-POISSONS_RATIO))/(2.0*(1.0+POISSONS_RATIO)*(7.0-5.0*POISSONS_RATIO))
 C1 = A1+2.0*A2
 C2 = A1/C1
@@ -1188,13 +1189,13 @@ while continueLoop:
                                                                      elementNumber,1)
 
                 
-        etildeA = np.matmul(etilde,A)
-        etildeAe = np.matmul(etildeA,e)
+        eTA = np.matmul(eT,A)
+        eTAe = np.matmul(eTA,e)
         #print("eT   = ",etilde)
         #print("e    = ",e)
         #print("eTA  = ",etildeA)
         #print("eTAe = ",etildeAe)
-        energy = etildeAe[0]
+        energy = eTAe[0]
              
         strValue = structureField.ParameterSetGetElementIntg(oc.FieldVariableTypes.U,
                                                              oc.FieldParameterSetTypes.VALUES,
@@ -1243,22 +1244,27 @@ while continueLoop:
     rankAbsTDSum = 0.0
     for nodeIdx in range(1,numberOfLocalNodes+1):
         nodeNumber = decomposition.NodeNumberGet(1,nodeIdx)
+        print("Node number = ",nodeNumber)
         # Loop over the elements surrounding the node to determine the average
         averageTD = 0.0
-        numberOfSurroundingElements = decomposition.NodeNumberOfSurroundingElements(1,nodeNumber)
+        numberOfSurroundingElements = decomposition.NodeNumberOfSurroundingElementsGet(1,nodeNumber)
         for surroundingElementIdx in range(1,numberOfSurroundingElements+1):
             surroundingElementNumber = decomposition.NodeSurroundingElementGet(1,nodeNumber,surroundingElementIdx)
             
             topologicalDerivative = tdField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
                                                                      surroundingElementNumber,1)
+            print("Surrounding element = ",surroundingElementNumber)
+            print("Topological derivative = ",topologicalDerivative)
             averageTD = averageTD + topologicalDerivative
+            
         averageTD = averageTD/float(numberOfSurroundingElements)
         # Set the topological derivative at the node
-        tdField.ParameterSetUpdateNodeDP(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES,1,
+        print("About to set the tdfield")
+        tdField.ParameterSetUpdateNodeDP(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES,1, \
                                          oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,averageTD)
         # Update sums
         rankTDSum = rankTDSum + averageTD
-        rankAbsTDSum =rankAbsTDSum + math.abs(averageTD)
+        rankAbsTDSum =rankAbsTDSum + abs(averageTD)
         
     #Reduce objective, volume etc. sums across the ranks
     tdSum = MPI.COMM_WORLD.allreduce(rankTDSum,op=MPI.SUM)
@@ -1283,9 +1289,10 @@ while continueLoop:
         topologicalDerivative = tdField.ParameterSetGetNodeDP(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES,1,
                                                               oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1)
         diffusionSourceValue = C*topologicalDerivative - lambdaValue
-        diffusionSourceField.ParameterSetUpdateElementDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
-                                                         elementNumber,1,-diffusionSourceValue)
-
+        diffusionSourceField.ParameterSetUpdateNodeDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,1, \
+                                                      oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1, \
+                                                      -diffusionSourceValue)
+        
     # Update the diffusion source field across the ranks
     diffusionSourceField.ParameterSetUpdateStart(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
     diffusionSourceField.ParameterSetUpdateFinish(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
@@ -1316,21 +1323,21 @@ while continueLoop:
     for elementIdx in range(1,numberOfLocalElements+1):
         elementNumber = decomposition.ElementNumberGet(elementIdx)
         elementBasis = oc.Basis()
-        elementBasis = decomposition.ElementBasisGet(1,elementNumber)
+        decomposition.ElementBasisGet(1,elementNumber,elementBasis)
         numberOfElementNodes = elementBasis.NumberOfLocalNodesGet()
         
         # Find the average value of Phi in the element
         averagePhi = 0.0
         for localNodeIdx in range(1,numberOfElementNodes+1):
-            nodeNumber = decomposition.elementNodeGet(1,elementNumber,localNodeIdx)
-            nodalPhi = diffusionDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES,1,
+            nodeNumber = decomposition.ElementNodeGet(1,elementNumber,localNodeIdx)
+            nodalPhi = diffusionDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,1,
                                                                      oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1)
             # Reset phi to the limits
             nodalPhi = min(1.0,max(-1.0,nodalPhi))                
             # Update phi
             nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
             if (nodeDomain == computationalNodeNumber):
-                diffusionDependentField.ParameterSetUpdateNodeDP(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES,1,
+                diffusionDependentField.ParameterSetUpdateNodeDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,1,
                                                                  oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
                                                                  nodalPhi)
             averagePhi = averagePhi + nodalPhi
@@ -1367,7 +1374,7 @@ while continueLoop:
     # OUTPUT
     #-----------------------------------------------------------------------------------------------------------
 
-    filenameFormat = "Bone_{Iteration:0d}"
+    filenameFormat = "BoneOptimisation_{Iteration:0d}"
     filename = filenameFormat.format(Iteration=iterationNumber)
     fields.NodesExport(filename,"FORTRAN")
     fields.ElementsExport(filename,"FORTRAN")
@@ -1376,7 +1383,7 @@ while continueLoop:
     # STATISTICS AND CHECK CONVERGENCE
     #-----------------------------------------------------------------------------------------------------------
 
-    print("Iteration = %d, Objective = %f, Volume ratio = %f, lambda = %f" % (iterationNumber,objective[iterationNumber]/float(NUMBER_OF_ELEMENTS),volume,lambdaValue))
+    print("Iteration = %d, Objective = %f, Volume ratio = %f, lambda = %f" % (iterationNumber,objective[iterationNumber]/float(NUMBER_OF_ELEMENTS),volumeRatio,lambdaValue))
     
     if( (iterationNumber>=MAXIMUM_NUMBER_OF_ITERATIONS) ):
         continueLoop = False

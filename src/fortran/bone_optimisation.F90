@@ -69,9 +69,9 @@ PROGRAM BoneOptimisation
   REAL(OC_RP), PARAMETER :: HEIGHT = 10.00_OC_RP !The height of the domain
   REAL(OC_RP), PARAMETER :: WIDTH = 10.00_OC_RP !The height of the domain
   
-  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_X_ELEMENTS = 10 !Number of elements along the length of the domain
-  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_Y_ELEMENTS = 6 !Number of elements along the height of the domain
-  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_Z_ELEMENTS = 6 !Number of elements along the width of the domain
+  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_X_ELEMENTS = 20 !Number of elements along the length of the domain
+  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_Y_ELEMENTS = 12 !Number of elements along the height of the domain
+  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_Z_ELEMENTS = 12 !Number of elements along the width of the domain
 
   !Loading case
   INTEGER(OC_Intg), PARAMETER :: CANTILEVER_LOADING_CASE = 1
