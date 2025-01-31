@@ -8,7 +8,9 @@
 # Multidisc. Optim., 51:1159-1172. DOI:10.1007/s00158-014-1190-z
 #
 
-import sys,os,math
+import sys
+import os
+import math
 import numpy as np
 from mpi4py import MPI
 import meshio
@@ -38,7 +40,7 @@ def OutputFields(filename):
     elementBasis = oc.Basis()
     outputNumberOfElements = mesh.NumberOfElementsGet()
     mesh.ElementsGet(1,outputMeshElements)
-    outputNumberOfElementComponents = 9+2*numberOfVoigtComponents+2+3
+    outputNumberOfElementComponents = 5+2*numberOfVoigtComponents+2+3
     
     outputFileName = filename + "_solution.vtk"
     
@@ -184,12 +186,8 @@ def OutputFields(filename):
                 elementNumber,
                 elementNodes[0],
                 elementNodes[1],
-                elementNodes[3],
                 elementNodes[2],
-                elementNodes[4],
-                elementNodes[5],
-                elementNodes[7],
-                elementNodes[6],
+                elementNodes[3],
                 elementCauchyStress11,
                 elementCauchyStress22,
                 elementCauchyStress33,
@@ -214,7 +212,7 @@ def OutputFields(filename):
     elementsList = np.array(elementsList)
     
     points = np.array(nodesList[:, 1:4])
-    cells = [("hexahedron", np.array(elementsList)[:, 1:9] - 1)]
+    cells = [("tetra", np.array(elementsList)[:, 1:5] - 1)]
 
     # Get values
     position = nodesList[:,1:4]
@@ -224,24 +222,24 @@ def OutputFields(filename):
     diffusionSource = nodesList[:,11]
     tdn = nodesList[:,12]
 
-    cauchyStress11 = elementsList[:,9]
-    cauchyStress22 = elementsList[:,10]
-    cauchyStress33 = elementsList[:,11]
-    cauchyStress23 = elementsList[:,12]
-    cauchyStress13 = elementsList[:,13]
-    cauchyStress12 = elementsList[:,14]
-    smallStrain11 = elementsList[:,15]
-    smallStrain22 = elementsList[:,16]
-    smallStrain33 = elementsList[:,17]
-    smallStrain23 = elementsList[:,18]
-    smallStrain13 = elementsList[:,19]
-    smallStrain12 = elementsList[:,20]
-    elasticWork = elementsList[:,21]
-    youngsModulus = elementsList[:,22]
-    poissonsRatio = elementsList[:,23]
-    structure = elementsList[:,24]
-    sed = elementsList[:,25]
-    td = elementsList[:,26]
+    cauchyStress11 = elementsList[:,5]
+    cauchyStress22 = elementsList[:,6]
+    cauchyStress33 = elementsList[:,7]
+    cauchyStress23 = elementsList[:,8]
+    cauchyStress13 = elementsList[:,9]
+    cauchyStress12 = elementsList[:,10]
+    smallStrain11 = elementsList[:,11]
+    smallStrain22 = elementsList[:,12]
+    smallStrain33 = elementsList[:,13]
+    smallStrain23 = elementsList[:,14]
+    smallStrain13 = elementsList[:,15]
+    smallStrain12 = elementsList[:,16]
+    elasticWork = elementsList[:,17]
+    youngsModulus = elementsList[:,18]
+    poissonsRatio = elementsList[:,19]
+    structure = elementsList[:,20]
+    sed = elementsList[:,21]
+    td = elementsList[:,22]
 
     # Write solution mesh
     solutionMesh = meshio.Mesh(points,cells)
@@ -278,59 +276,21 @@ def OutputFields(filename):
     displacedPoints = position + displacement*SCALE_DISPLACEMENT
     outputFileNameDisplaced = filename + "_displaced.vtk"
     solutionMesh.points = displacedPoints
-    meshio.write(outputFileNameDisplaced,solutionMesh)
-    
-def PrintArrayNode(a,component,name):
-    if(DEBUG):
-        print("")
-        print(name," :")
-        for zNodeIdx in range(1,max(NUMBER_OF_Z_NODES+1,1)):
-            print("")
-            for yNodeIdx in range(NUMBER_OF_Y_NODES,0,-1):
-                for xNodeIdx in range(1,NUMBER_OF_X_NODES+1):
-                    idx = xNodeIdx-1+(yNodeIdx-1)*NUMBER_OF_X_NODES + \
-                        (zNodeIdx-1)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES + \
-                        (component-1)*NUMBER_OF_NODES
-                    print("{:8.3f}".format(a[idx]), end=" ")
-                print("")
-                
-
-def PrintArrayElement(a,component,name):
-    if(DEBUG):
-        print("")
-        print(name," :")
-        for zElementIdx in range(1,max(NUMBER_OF_Z_ELEMENTS+1,1)):
-            print("")
-            for yElementIdx in range(NUMBER_OF_Y_ELEMENTS,0,-1):
-                for xElementIdx in range(1,NUMBER_OF_X_ELEMENTS+1):
-                    idx = xElementIdx-1+(yElementIdx-1)*NUMBER_OF_X_ELEMENTS + \
-                        (zElementIdx-1)*NUMBER_OF_X_ELEMENTS*NUMBER_OF_Y_ELEMENTS + \
-                        (component-1)*NUMBER_OF_ELEMENTS
-                    print("{:8.3f}".format(a[idx]), end=" ")
-                print("")
-
+    meshio.write(outputFileNameDisplaced,solutionMesh)    
 
 #-----------------------------------------------------------------------------------------------------------
 # SET PROBLEM PARAMETERS
 #-----------------------------------------------------------------------------------------------------------
 
+# Boundary condition 
+DOWNWARD_FORCE = 10.0 # N.mm^-2
+DIRICHLET_VECTOR = -5.0
+
 # Output parameters
 SCALE_DISPLACEMENT = 1.0e3
 
-# Geometric parameters
-LENGTH = 12.5 # mm
-HEIGHT = 10.0 # mm
-WIDTH = 10.0 # mm
-
-# Loading case
-CANTILEVER_LOADING_CASE = 1
-SIMPLY_SUPPORTED_LOADING_CASE = 2
-
-# Boundary condition 
-MAX_FORCE = 0.6666 # N.mm^-2
-
 # Elasticity parameters
-YOUNGS_MODULUS = 1.0 # mg.mm^-1.ms^-2
+YOUNGS_MODULUS = 30.0e6 # mg.mm^-1.ms^-2
 YOUNGS_MODULUS_MIN = 0.000001 # mg.mm^-1.ms^-2
 POISSONS_RATIO = 0.3
 THICKNESS = 1.0 # mm (for plane strain and stress)
@@ -349,11 +309,11 @@ N_VOL_ITERATIONS = 100
 TIME_START = 0.00
 TIME_STEP = 0.05
 
-MAXIMUM_NUMBER_OF_ITERATIONS = 10 # Maximum number of iterations in the main loop
-#MAXIMUM_NUMBER_OF_ITERATIONS = 200 # Maximum number of iterations in the main loop
+#MAXIMUM_NUMBER_OF_ITERATIONS = 10 # Maximum number of iterations in the main loop
+MAXIMUM_NUMBER_OF_ITERATIONS = 200 # Maximum number of iterations in the main loop
 
-#DEBUG = True
-DEBUG = False
+DEBUG = True
+#DEBUG = False
 
 # Generic parameters
 
@@ -365,21 +325,11 @@ LINEAR_SIMPLEX = 5
 QUADRATIC_SIMPLEX = 6
 CUBIC_SIMPLEX = 7
 
-# Defaults
-NUMBER_OF_X_ELEMENTS = 10
-NUMBER_OF_Y_ELEMENTS = 6
-NUMBER_OF_Z_ELEMENTS = 6
-LOADING_CASE = CANTILEVER_LOADING_CASE
-#LOADING_CASE = SIMPLY_SUPPORTED_LOADING_CASE
-INTERPOLATION_TYPE = LINEAR_LAGRANGE
-#INTERPOLATION_TYPE = LINEAR_SIMPLEX
-
 # User numbers
 (CONTEXT_USER_NUMBER,
  COORDINATE_SYSTEM_USER_NUMBER,
  REGION_USER_NUMBER,
  BASIS_USER_NUMBER,
- GENERATED_MESH_USER_NUMBER,
  MESH_USER_NUMBER,
  DECOMPOSITION_USER_NUMBER,
  DECOMPOSER_USER_NUMBER,
@@ -399,37 +349,25 @@ INTERPOLATION_TYPE = LINEAR_LAGRANGE
  TD_FIELD_USER_NUMBER,
  ELASTICITY_PROBLEM_USER_NUMBER,
  DIFFUSION_PROBLEM_USER_NUMBER
- ) = range(1,25)
+ ) = range(1,24)
+
+baseFileName = 'adapted_aligned_QA_approved_volumetric_mesh+1'
 
 # Override defaults with command line arguments if need be
 if len(sys.argv) > 1:
-    if len(sys.argv) > 7:
-        sys.exit('ERROR: too many arguments- currently only accepting up to 6 options: NUMBER_OF_X_ELEMENTS NUMBER_OF_Y_ELEMENTS NUMBER_OF_Z_ELEMENTS LOADING_CASE INTERPOLATION_TYPE')
-    NUMBER_OF_X_ELEMENTS = int(sys.argv[1])
     if len(sys.argv) > 2:
-        NUMBER_OF_Y_ELEMENTS = int(sys.argv[2])
-    if len(sys.argv) > 3:
-        NUMBER_OF_Z_ELEMENTS = int(sys.argv[3])
-    if len(sys.argv) > 4:
-        LOADING_CASE = int(sys.argv[4])
-    if len(sys.argv) > 5:
-        INTERPOLATION_TYPE = int(sys.argv[5])
+        sys.exit('ERROR: too many arguments- currently only accepting up to 6 options: meshfilename')
+    baseFileName = int(sys.argv[1])
 
-# Check parameters
-if (NUMBER_OF_X_ELEMENTS <= 1):
-    sys.exit('ERROR: number of X elements must be > 1.')
-if (NUMBER_OF_Y_ELEMENTS <= 1):
-    sys.exit('ERROR: number of Y elements must be > 1.')
-if (NUMBER_OF_Z_ELEMENTS < 0):
-    sys.exit('ERROR: number of Z elements must be >= 0.')
 
-if (NUMBER_OF_Z_ELEMENTS == 0):
-    NUMBER_OF_DIMENSIONS = 2
-else:
-    NUMBER_OF_DIMENSIONS = 3
+inputFileName = baseFileName + ".mesh"
+outputFileName = baseFileName + "_solution.vtk"
+dirichletFileName = baseFileName + "_dirichlet_BC.npy"
+neumannFileName = baseFileName + "_neumann_BC.npy"
 
-if (not ((LOADING_CASE == CANTILEVER_LOADING_CASE) or (LOADING_CASE == SIMPLY_SUPPORTED_LOADING_CASE))):
-    sys.exit('ERROR: invalid loading case.')
+NUMBER_OF_DIMENSIONS = 3
+
+INTERPOLATION_TYPE = LINEAR_SIMPLEX
 
 if (INTERPOLATION_TYPE == LINEAR_LAGRANGE):
     INTERPOLATION_TYPE_XI = oc.BasisInterpolationSpecifications.LINEAR_LAGRANGE
@@ -467,28 +405,48 @@ HAVE_SIMPLEX = (INTERPOLATION_TYPE == LINEAR_SIMPLEX or
                 INTERPOLATION_TYPE == QUADRATIC_SIMPLEX or
                 INTERPOLATION_TYPE == CUBIC_SIMPLEX)
 
-if (HAVE_SIMPLEX):
-    ELEMENT_FACTOR = 2
-else:
-    ELEMENT_FACTOR = 1
-NUMBER_OF_X_NODES = NUMBER_OF_X_ELEMENTS*(NUMBER_OF_NODES_XI-1)+1
-NUMBER_OF_Y_NODES = NUMBER_OF_Y_ELEMENTS*(NUMBER_OF_NODES_XI-1)+1
-if (NUMBER_OF_DIMENSIONS == 2):
-    NUMBER_OF_ELEMENTS = NUMBER_OF_X_ELEMENTS*NUMBER_OF_Y_ELEMENTS*ELEMENT_FACTOR
-    NUMBER_OF_NODES = NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-else:
-    NUMBER_OF_ELEMENTS = NUMBER_OF_X_ELEMENTS*NUMBER_OF_Y_ELEMENTS*NUMBER_OF_Z_ELEMENTS*ELEMENT_FACTOR
-    NUMBER_OF_Z_NODES = NUMBER_OF_Z_ELEMENTS*(NUMBER_OF_NODES_XI-1)+1
-    NUMBER_OF_NODES = NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES*NUMBER_OF_Z_NODES
 NUMBER_OF_XI = NUMBER_OF_DIMENSIONS
 if (not HAVE_SIMPLEX):
     NUMBER_OF_GAUSS = pow(NUMBER_OF_GAUSS_XI,NUMBER_OF_XI)
 
-print("nelx = ",NUMBER_OF_X_ELEMENTS)
-print("nely = ",NUMBER_OF_Y_ELEMENTS)
-print("Vmax = ",MAX_VOLUME_RATIO)
-print("tau = ",DIFFUSION_TAU_PARAM)
-      
+
+         
+#-----------------------------------------------------------------------------------------------------------
+# READ MESH ETC. FILES
+#-----------------------------------------------------------------------------------------------------------
+
+inputMesh = meshio.read(inputFileName)
+
+inputCoords = inputMesh.points
+inputNodes = range(1, len(inputCoords) + 1)
+NUMBER_OF_NODES = len(inputCoords)
+
+inputElementNodes = inputMesh.cells_dict["tetra"] + 1
+inputElements = range(1, len(inputMesh.cells_dict["tetra"]) + 1)
+NUMBER_OF_ELEMENTS = len(inputElements)
+                     
+
+print("Mesh loaded:")
+print("  Filename : ",inputFileName)
+print("  Number of vertices : ",NUMBER_OF_NODES)
+print("  Number of elements : ",NUMBER_OF_ELEMENTS)
+
+# Load BC files
+
+dirichletNodes = np.load(dirichletFileName) + 1
+NUMBER_OF_DIRICHLET = len(dirichletNodes)
+
+neumannNodes = np.load(neumannFileName) + 1
+NUMBER_OF_NEUMANN = len(neumannNodes)
+
+print("BCs loaded:")
+print("  Dirichlet BCs:")
+print("    Filename : ",dirichletFileName)
+print("    Number of Dirichlet BCs : ",NUMBER_OF_DIRICHLET)
+print("  Neumann BCs:")
+print("    Filename : ",neumannFileName)
+print("    Number of Neumann BCs : ",NUMBER_OF_NEUMANN)
+
 #-----------------------------------------------------------------------------------------------------------
 # CONTEXT AND WORLD REGION
 #-----------------------------------------------------------------------------------------------------------
@@ -570,19 +528,25 @@ basis.CreateFinish()
 # MESH
 #-----------------------------------------------------------------------------------------------------------
 
-generatedMesh = oc.GeneratedMesh()
-generatedMesh.CreateStart(GENERATED_MESH_USER_NUMBER,region)
-generatedMesh.TypeSet(oc.GeneratedMeshTypes.REGULAR)
-generatedMesh.BasisSet([basis])
-if (NUMBER_OF_DIMENSIONS == 2):
-    generatedMesh.ExtentSet([LENGTH,HEIGHT])
-    generatedMesh.NumberOfElementsSet([NUMBER_OF_X_ELEMENTS,NUMBER_OF_Y_ELEMENTS])
-else:
-    generatedMesh.ExtentSet([LENGTH,HEIGHT,WIDTH])
-    generatedMesh.NumberOfElementsSet([NUMBER_OF_X_ELEMENTS,NUMBER_OF_Y_ELEMENTS,NUMBER_OF_Z_ELEMENTS])
-mesh = oc.Mesh()
-generatedMesh.CreateFinish(MESH_USER_NUMBER,mesh)
+nodes = oc.Nodes()
+nodes.CreateStart(region,NUMBER_OF_NODES)
+nodes.CreateFinish()
 
+mesh = oc.Mesh()
+mesh.CreateStart(MESH_USER_NUMBER,region,NUMBER_OF_DIMENSIONS)
+mesh.NumberOfElementsSet(NUMBER_OF_ELEMENTS)
+mesh.NumberOfComponentsSet(1)
+meshElements = oc.MeshElements()
+
+meshElements.CreateStart(mesh,1,basis)
+
+for elementIdx in inputElements:
+    localNodes = np.array(inputElementNodes[elementIdx - 1],dtype=np.int32)
+    meshElements.NodesSet(elementIdx,localNodes)
+
+meshElements.CreateFinish()
+mesh.CreateFinish()
+ 
 #-----------------------------------------------------------------------------------------------------------
 # MESH DECOMPOSITION
 #-----------------------------------------------------------------------------------------------------------
@@ -620,8 +584,24 @@ if (NUMBER_OF_DIMENSIONS == 3):
 geometricField.ScalingTypeSet(oc.FieldScalingTypes.ARITHMETIC_MEAN)
 geometricField.CreateFinish()
 
-# Set geometry from the generated mesh
-generatedMesh.GeometricParametersCalculate(geometricField)
+# Set geometry
+for nodeIdx in range(1,NUMBER_OF_NODES+1):
+    nodeDomain = decomposition.NodeDomainGet(1,nodeIdx)
+    if (nodeDomain == computationalNodeNumber):
+        x = inputCoords[nodeIdx - 1,0].item()
+        y = inputCoords[nodeIdx - 1,1].item()
+        geometricField.ParameterSetUpdateNode(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
+                                              1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeIdx,1,x)
+        geometricField.ParameterSetUpdateNode(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
+                                              1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeIdx,2,y)
+        if(NUMBER_OF_DIMENSIONS==3):
+            z = inputCoords[nodeIdx - 1,2].item()
+            geometricField.ParameterSetUpdateNode(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
+                                                  1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeIdx,3,z)
+
+# Update the geometric field            
+geometricField.ParameterSetUpdateStart(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
+geometricField.ParameterSetUpdateFinish(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
 
 #-----------------------------------------------------------------------------------------------------------
 # ELASTITICY EQUATION SETS
@@ -869,339 +849,57 @@ elasticityProblem.SolverEquationsCreateFinish()
 #-----------------------------------------------------------------------------------------------------------
 # ELASTICITY BOUNDARY CONDITIONS
 #-----------------------------------------------------------------------------------------------------------
-2
+
 elasticityBoundaryConditions = oc.BoundaryConditions()
 elasticitySolverEquations.BoundaryConditionsCreateStart(elasticityBoundaryConditions)
 
-if (LOADING_CASE == CANTILEVER_LOADING_CASE):
-    if (NUMBER_OF_DIMENSIONS == 2):
-        
-        #Set the left edge to be built in
-        for yNodeIdx in range(1,NUMBER_OF_Y_NODES+1):
-            nodeNumber = 1+(yNodeIdx-1)*NUMBER_OF_X_NODES
-            nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-            if (nodeDomain == computationalNodeNumber):
-                #Fix the node in the x and y directions
-                if(DEBUG):
-                    print("Setting a built in boundary condition for node ",nodeNumber)
-                elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                     oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
-                                                     oc.BoundaryConditionsTypes.FIXED,0.0)
-                elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                     oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                     oc.BoundaryConditionsTypes.FIXED,0.0)
-      
-        #Set the mid right edge node to have a rightward displacement/force
-        midNodeNumber = (1 + math.floor(NUMBER_OF_Y_NODES/2.0))*NUMBER_OF_X_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,midNodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Downward force at the node
-            if(DEBUG):
-                print("Setting a downward force boundary condition for node ",midNodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,1,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,-MAX_FORCE)
-            
-    else:
-        
-        #Set the left edge to be built in
-        for zNodeIdx in range(1,NUMBER_OF_Z_NODES+1):
-            for yNodeIdx in range(1,NUMBER_OF_Y_NODES+1):
-                nodeNumber = 1+(yNodeIdx-1)*NUMBER_OF_X_NODES+(zNodeIdx-1)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-                nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-                if (nodeDomain == computationalNodeNumber):
-                    #Fix the node in the x, y & z directions
-                    if(DEBUG):
-                        print("Setting a built in boundary condition for node ",nodeNumber)
-                    elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                         oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
-                                                         oc.BoundaryConditionsTypes.FIXED,0.0)
-                    elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                         oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                         oc.BoundaryConditionsTypes.FIXED,0.0)
-                    elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                         oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,3,
-                                                         oc.BoundaryConditionsTypes.FIXED,0.0)
+# Set Dirichlet BCs
 
-        #Set the mid right edge node to have a rightward displacement/force
-        midNodeNumber = (1 + math.floor(NUMBER_OF_Y_NODES/2.0))*NUMBER_OF_X_NODES + \
-            math.floor(NUMBER_OF_Z_NODES/2.0)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,midNodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Downward force at the node
-            if(DEBUG):
-                print("Setting a downward force boundary condition for node ",midNodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,1,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,-MAX_FORCE)            
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,3,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-       
-else:
-    
-    if (NUMBER_OF_DIMENSIONS == 2):
-
-        #Set the bottom left element to be built in
-        nodeNumber = 1
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the x and y directions
-            if(DEBUG):
-                print("Setting a built in boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = 2
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the x and y directions
-            if(DEBUG):
-                print("Setting a built in boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            
-        #Set the bottom right element to be simply support
-        nodeNumber = NUMBER_OF_X_NODES-1
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = NUMBER_OF_X_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            
-        #Set the mid bottom node to have a downward force
-        midNodeNumber = 1 + math.floor(NUMBER_OF_X_NODES/2.0)
-        nodeDomain = decomposition.NodeDomainGet(1,midNodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Downward force at the node
-            if(DEBUG):
-                print("Setting a downward force boundary condition for node ",midNodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,1,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,-MAX_FORCE)
-    else:
-
-        #Set the bottom left element to be built in
-        nodeNumber = 1
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the x, y & z directions
-            if(DEBUG):
-                print("Setting a built in boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
+dirichletNodesBC = []
+for nodeIdx in dirichletNodes:
+    nodeNumber = int(nodeIdx)
+    nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
+    if (nodeDomain == computationalNodeNumber):
+        # Fix the node in x, y (& z)
+        if(DEBUG):
+            print("Setting a no displacement boundary condition for node ",nodeNumber)
+        elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
+                                             oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
+                                             oc.BoundaryConditionsTypes.FIXED,0.0)
+        elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
+                                             oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
+                                             oc.BoundaryConditionsTypes.FIXED,0.0)
+        if (NUMBER_OF_DIMENSIONS==3):
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
                                                  oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,3,
                                                  oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = 2
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the x, y & z directions
-            if(DEBUG):
-                print("Setting a built in boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,3,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = 1 + NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the x, y & z directions
-            if(DEBUG):
-                print("Setting a built in boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,3,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = 2 + NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the x, y & z directions
-            if(DEBUG):
-                print("Setting a built in boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,3,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
+        # Show a vector in the x direction where nodes are fixed
+        dirichletNodesBC.append([nodeNumber,DIRICHLET_VECTOR,0.0,0.0])
+dirichletNodesBC = np.array(dirichletNodesBC)
 
-        #Set the bottom right element to be simply supported
-        nodeNumber = NUMBER_OF_X_NODES-1
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = NUMBER_OF_X_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = NUMBER_OF_X_NODES - 1 + NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = NUMBER_OF_X_NODES + NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        
-        #Set the bottom left deep element to be simply supported
-        nodeNumber = 1 + (NUMBER_OF_Z_NODES-2)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber =  2 + (NUMBER_OF_Z_NODES-2)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = 1 + (NUMBER_OF_Z_NODES-1)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES 
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = 2 + (NUMBER_OF_Z_NODES-1)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        
-        #Set the bottom right deep element to be simply supported
-        nodeNumber = NUMBER_OF_X_NODES - 1 + (NUMBER_OF_Z_NODES - 2)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = NUMBER_OF_X_NODES  + (NUMBER_OF_Z_NODES - 2)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = NUMBER_OF_X_NODES - 1 + (NUMBER_OF_Z_NODES - 1)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        nodeNumber = NUMBER_OF_X_NODES + (NUMBER_OF_Z_NODES - 1)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Fix the node in the y direction
-            if(DEBUG):
-                print("Setting a simply supported boundary condition for node ",nodeNumber)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.U,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
-        
-        #Set the mid bottom face node to have a downward force
-        midNodeNumber = 1 + math.floor(NUMBER_OF_X_NODES/2.0) + \
-            math.floor(NUMBER_OF_Z_NODES/2.0)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES   
-        nodeDomain = decomposition.NodeDomainGet(1,midNodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            #Downward force at the node
-            if(DEBUG):
-                print("Setting a downward force boundary condition for node ",midNodeNumber)
+# Set Neumann BCs
+
+neumannNodesBC = []
+for nodeIdx in neumannNodes:
+    nodeNumber = int(nodeIdx)
+    nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
+    if (nodeDomain == computationalNodeNumber):
+        # Set downward force at the node in the y direction
+        if(DEBUG):
+            print("Setting a downward force boundary condition for node ",nodeNumber)
+        elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
+                                             oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
+                                             oc.BoundaryConditionsTypes.FIXED,0.0)
+        elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
+                                             oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,2,
+                                             oc.BoundaryConditionsTypes.FIXED,DOWNWARD_FORCE)
+        if (NUMBER_OF_DIMENSIONS==3):
             elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,1,
+                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,3,
                                                  oc.BoundaryConditionsTypes.FIXED,0.0)
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,2,
-                                                 oc.BoundaryConditionsTypes.FIXED,-MAX_FORCE)            
-            elasticityBoundaryConditions.SetNode(elasticityDependentField,oc.FieldVariableTypes.T,1,
-                                                 oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,midNodeNumber,3,
-                                                 oc.BoundaryConditionsTypes.FIXED,0.0)
+        # Show a vector in the x direction where nodes are fixed
+        neumannNodesBC.append([nodeNumber,0.0,DOWNWARD_FORCE,0.0])
+neumannNodesBC = np.array(neumannNodesBC)
 
 elasticitySolverEquations.BoundaryConditionsCreateFinish()
 
@@ -1409,11 +1107,8 @@ else:
 objective = np.array([0.0]*(MAXIMUM_NUMBER_OF_ITERATIONS+1)) #1-indexed
 
 diffusionValues = diffusionDependentField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
-PrintArrayNode(diffusionValues,1,"Phi")
 structureValues = structureField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
-PrintArrayElement(structureValues,1,"Str")
 youngsModulusValues = elasticityMaterialsField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
-PrintArrayElement(youngsModulusValues,1,"E")
 
 #-----------------------------------------------------------------------------------------------------------
 # MAIN LOOP START
@@ -1435,29 +1130,14 @@ while continueLoop:
     
     elasticitySolution = elasticityDependentField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
 
-    PrintArrayNode(elasticitySolution,1,"u")
-    PrintArrayNode(elasticitySolution,2,"v")
-    if (NUMBER_OF_DIMENSIONS == 3):
-        PrintArrayNode(elasticitySolution,3,"w")
-        
-    
     # Calculate the derived fields
     elasticityEquationsSet.DerivedVariableCalculate(oc.EquationsSetDerivedTensorTypes.SMALL_STRAIN)
     elasticityEquationsSet.DerivedVariableCalculate(oc.EquationsSetDerivedTensorTypes.CAUCHY_STRESS)
     elasticityEquationsSet.DerivedVariableCalculate(oc.EquationsSetDerivedTensorTypes.ELASTIC_WORK)
  
     #strainSolution = elasticityDerivedField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
-    #PrintArrayElement(strainSolution,1,"e11")
-    #PrintArrayElement(strainSolution,2,"e22")
-    #PrintArrayElement(strainSolution,3,"e12")
-    
     #stressSolution = elasticityDerivedField.ParameterSetDataGet(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES)
-    #PrintArrayElement(stressSolution,1,"sigma11")
-    #PrintArrayElement(stressSolution,2,"sigma22")
-    #PrintArrayElement(stressSolution,3,"sigma12")
-    
     #workSolution = elasticityDerivedField.ParameterSetDataGet(oc.FieldVariableTypes.W,oc.FieldParameterSetTypes.VALUES)
-    #PrintArrayElement(workSolution,1,"work")
      
     #-----------------------------------------------------------------------------------------------------------
     # ELASTICITY OPTIMISATION PARAMETERS
@@ -1552,11 +1232,8 @@ while continueLoop:
     tdField.ParameterSetUpdateFinish(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
     
     seValues = elasticityDerivedField.ParameterSetDataGet(oc.FieldVariableTypes.W,oc.FieldParameterSetTypes.VALUES)
-    PrintArrayElement(seValues,1,"SE")
     sedValues = sedField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
-    PrintArrayElement(sedValues,1,"SED")
     tdValues = tdField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
-    PrintArrayElement(tdValues,1,"TD")
 
     # Compute the nodal topological derivatives values and sums
     rankTDSum = 0.0
@@ -1586,7 +1263,6 @@ while continueLoop:
     absTDSum = MPI.COMM_WORLD.allreduce(rankAbsTDSum,op=MPI.SUM)
    
     tdnValues = tdField.ParameterSetDataGet(oc.FieldVariableTypes.V,oc.FieldParameterSetTypes.VALUES)
-    PrintArrayNode(tdnValues,1,"TDN")
     
     #-----------------------------------------------------------------------------------------------------------
     # CALCULATE AUGMENTED LAGRANGIAN PARAMETERS
@@ -1620,7 +1296,6 @@ while continueLoop:
     diffusionSourceField.ParameterSetUpdateFinish(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
         
     diffusionSourceValues = diffusionSourceField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
-    PrintArrayElement(diffusionSourceValues,1,"Diffusion Source")
     
     #-----------------------------------------------------------------------------------------------------------
     # DIFFUSION SOLVE
@@ -1632,10 +1307,6 @@ while continueLoop:
     diffusionValues = diffusionDependentField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
     structureValues = structureField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
     youngsModulusValues = elasticityMaterialsField.ParameterSetDataGet(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
-
-    PrintArrayNode(diffusionValues,1,"Phi")
-    
-    #print(diffusionSolution)
     
     #-----------------------------------------------------------------------------------------------------------
     # RECALCULATE THE NEW STRUCUTRE FIELD AND VOLUME
@@ -1680,11 +1351,6 @@ while continueLoop:
     diffusionDependentField.ParameterSetUpdateFinish(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
     structureField.ParameterSetUpdateFinish(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
     elasticityMaterialsField.ParameterSetUpdateFinish(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
-
-    
-    PrintArrayNode(diffusionValues,1,"Phi")
-    PrintArrayElement(structureValues,1,"Str")
-    PrintArrayElement(youngsModulusValues,1,"E")
     
     #-----------------------------------------------------------------------------------------------------------
     # OUTPUT

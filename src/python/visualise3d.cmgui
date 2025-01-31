@@ -1,0 +1,84 @@
+$name = "BoneOptimisation";
+$numberOfProcessors = 8;
+$numberOfIterations = 200;
+
+
+for($rank=0; $rank < $numberOfProcessors; $rank=$rank+1)
+   {
+   $filename = sprintf("./%s_0.part%d.exnode", $name, $rank);
+   gfx read node "$filename";
+   }
+for($rank=0; $rank < $numberOfProcessors; $rank=$rank+1)
+   {
+   $filename = sprintf("./%s_0.part%d.exelem", $name, $rank);
+   gfx read elem "$filename";
+   }
+
+gfx def faces egroup $name;
+
+gfx define field work multiply_components fields Str ElasticWork
+
+gfx define field Delta component Displacement.1 Displacement.2 Displacement.3
+gfx define field Deformed add fields Geometry Delta scale_factors 1.0 0.1
+gfx define field Force component Traction.1 Traction.2 Traction.3
+
+gfx create window 1 double_buffer;
+gfx modify window 1 image scene default infinite_viewer_lighting two_sided_lighting;
+gfx modify window 1 image add_light default;
+gfx modify window 1 image add_light default_ambient;
+gfx modify window 1 layout simple ortho_axes z -y eye_spacing 0.25 width 500 height 500;
+gfx modify window 1 set current_pane 1;
+gfx modify window 1 background colour 1 1 1 texture none;
+gfx modify window 1 view parallel eye_point 20.0 15.0 45.0 interest_point 6.25 5.0 5.0 up_vector -0.05 0.96 -0.20 view_angle 40.0 near_clipping_plane 2.0 far_clipping_plane 100.0 relative_viewport ndc_placement -1 1 2 2 viewport_coordinates 0 0 1 1;
+gfx modify window 1 set transform_tool current_pane 1 std_view_angle 40 normal_lines no_antialias depth_of_field 0.0 fast_transparency blend_normal;
+
+gfx create spectrum StructureSpectrum
+gfx modify spectrum StructureSpectrum clear overwrite
+gfx modify spectrum StructureSpectrum linear range 0.25 0.75 extend_above transparent_below white_to_blue colour_range 0 1 component 1;
+gfx modify spectrum StructureSpectrum linear range 0.0 1.0 alpha colour_range 0 1 component 1;
+
+gfx create spectrum WorkSpectrum
+gfx modify spectrum WorkSpectrum clear overwrite
+gfx modify spectrum WorkSpectrum linear range 0.0 1.00 extend_above extend_below white_to_red colour_range 0 1 component 1;
+
+gfx create spectrum PhiSpectrum
+gfx modify spectrum PhiSpectrum clear overwrite
+gfx modify spectrum PhiSpectrum linear range 0.00 15.00 extend_above extend_below Rainbow colour_range 0 1 component 1;
+
+gfx modify g_element $name general clear
+
+#Display axes
+gfx modify g_element $name point glyph axes_solid_xyz general size "5.0*5.0*5.0" centre 0,0,0 font default select_on material yellow selected_material default_selected
+
+#Display undeformed solid lines
+gfx modify g_element $name lines coordinate Geometry tessellation default LOCAL native_discretization NONE select_on material white selected_material default_selected;
+
+#gfx modify g_element $name node_points glyph sphere general size "0.025*0.025*0.025" centre 0,0,0 font default label cmiss_number select_on material blue selected_material default_selected;
+
+#Display deformed solid lines
+#gfx modify g_element $name lines coordinate Deformed material red
+
+#gfx modify g_element $name surfaces domain_mesh2d coordinate Geometry material default data DiffusionSource spectrum PhiSpectrum
+gfx modify g_element $name surfaces domain_mesh2d coordinate Geometry material default data Str spectrum StructureSpectrum
+#gfx modify g_element $name surfaces domain_mesh2d coordinate Geometry material default data work spectrum WorkSpectrum
+
+
+for($iteration=1; $iteration < $numberOfIterations; $iteration=$iteration+1)
+	{
+	for($rank=0; $rank < $numberOfProcessors; $rank=$rank+1)
+  		{	
+  		$filename = sprintf("%s_%d.part%d.exnode", $name, $iteration, $rank);
+  		print "Reading $filename\n";
+  		gfx read node $filename;
+		}
+	for($rank=0; $rank < $numberOfProcessors; $rank=$rank+1)
+  		{	
+  		$filename = sprintf("%s_%d.part%d.exelem", $name, $iteration, $rank);
+  		print "Reading $filename\n";
+  		gfx read elem $filename;
+		}
+  	$filename = sprintf("%s_%02d.jpg", $name, $iteration);
+  	print "Writing $filename\n";
+	gfx print file $filename jpg window 1 height 1000 width 1000;
+	}
+	

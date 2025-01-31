@@ -63,7 +63,7 @@ PROGRAM BoneOptimisation
   REAL(OC_RP), PARAMETER :: PI=3.141592653589793238462643383279502884197_OC_RP 
  
   !Geomery
-  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_DIMENSIONS = 2 !The number of dimensions
+  INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_DIMENSIONS = 3 !The number of dimensions
   
   REAL(OC_RP), PARAMETER :: LENGTH = 12.50_OC_RP !The length of the domain 
   REAL(OC_RP), PARAMETER :: HEIGHT = 10.00_OC_RP !The height of the domain
@@ -77,8 +77,8 @@ PROGRAM BoneOptimisation
   INTEGER(OC_Intg), PARAMETER :: CANTILEVER_LOADING_CASE = 1
   INTEGER(OC_Intg), PARAMETER :: SIMPLY_SUPPORTED_LOADING_CASE = 2
   
-  INTEGER(OC_Intg), PARAMETER :: LOADING_CASE = CANTILEVER_LOADING_CASE
-  !INTEGER(OC_Intg), PARAMETER :: LOADING_CASE = SIMPLY_SUPPORTED_LOADING_CASE
+  !INTEGER(OC_Intg), PARAMETER :: LOADING_CASE = CANTILEVER_LOADING_CASE
+  INTEGER(OC_Intg), PARAMETER :: LOADING_CASE = SIMPLY_SUPPORTED_LOADING_CASE
   
   !Loading parametes
   REAL(OC_RP), PARAMETER :: MAX_FORCE = 0.6666_OC_RP
@@ -145,13 +145,6 @@ PROGRAM BoneOptimisation
 
   INTEGER(OC_Intg), PARAMETER :: NUMBER_OF_DOFS = NUMBER_OF_NODES*NUMBER_OF_DIMENSIONS
 
-  REAL(OC_RP), PARAMETER :: LAME_LAMBDA = POISSONS_RATIO*YOUNGS_MODULUS/ &
-    &((1.0_OC_RP-POISSONS_RATIO)*(1.0_OC_RP-2.0_OC_RP*POISSONS_RATIO))
-  REAL(OC_RP), PARAMETER :: LAME_MU = YOUNGS_MODULUS/(2.0_OC_RP*(1.0_OC_RP-POISSONS_RATIO))
-  REAL(OC_RP), PARAMETER :: LAME_LAMBDA_MIN = POISSONS_RATIO*YOUNGS_MODULUS_MIN/ &
-    &((1.0_OC_RP-POISSONS_RATIO)*(1.0_OC_RP-2.0_OC_RP*POISSONS_RATIO))
-  REAL(OC_RP), PARAMETER :: LAME_MU_MIN = YOUNGS_MODULUS_MIN/(2.0_OC_RP*(1.0_OC_RP-POISSONS_RATIO))
-  
   !Generic OpenCMISS variables
   INTEGER(OC_Intg), PARAMETER :: CONTEXT_USER_NUMBER=1
   INTEGER(OC_Intg), PARAMETER :: COORDINATE_SYSTEM_USER_NUMBER=2
@@ -436,18 +429,13 @@ PROGRAM BoneOptimisation
   CALL OC_EquationsSet_MaterialsCreateFinish(elasticityEquationsSet,err)
   
   !Initialise the material constants
+  CALL OC_Field_ComponentValuesInitialise(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE, &
+    & OC_FIELD_VALUES_SET_TYPE,1,YOUNGS_MODULUS,err)
+  CALL OC_Field_ComponentValuesInitialise(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE, &
+    & OC_FIELD_VALUES_SET_TYPE,2,POISSONS_RATIO,err)
   IF(NUMBER_OF_DIMENSIONS==2) THEN
     CALL OC_Field_ComponentValuesInitialise(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE, &
-      & OC_FIELD_VALUES_SET_TYPE,1,YOUNGS_MODULUS,err)
-    CALL OC_Field_ComponentValuesInitialise(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE, &
-      & OC_FIELD_VALUES_SET_TYPE,2,POISSONS_RATIO,err)
-    CALL OC_Field_ComponentValuesInitialise(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE, &
       & OC_FIELD_VALUES_SET_TYPE,3,THICKNESS,err)
-  ELSE
-    CALL OC_Field_ComponentValuesInitialise(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE, &
-      & OC_FIELD_VALUES_SET_TYPE,1,LAME_LAMBDA,err)
-    CALL OC_Field_ComponentValuesInitialise(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE, &
-      & OC_FIELD_VALUES_SET_TYPE,2,LAME_MU,err)
   ENDIF
   
   !-----------------------------------------------------------------------------------------------------------
@@ -1250,6 +1238,9 @@ PROGRAM BoneOptimisation
 
     CALL PrintArrayNodeRP(elasticityValues,1,"u")
     CALL PrintArrayNodeRP(elasticityValues,2,"v")
+    IF(NUMBER_OF_DIMENSIONS==3) THEN
+      CALL PrintArrayNodeRP(elasticityValues,3,"w")
+    ENDIF
     
     !-----------------------------------------------------------------------------------------------------------
     ! ELASTICITY DERIVED
@@ -1467,15 +1458,8 @@ PROGRAM BoneOptimisation
         !Remove the element from the structure
         CALL OC_Field_ParameterSetUpdateElement(structureField,OC_FIELD_U_VARIABLE_TYPE,OC_FIELD_VALUES_SET_TYPE, &
           & elementNumber,1,0_OC_Intg,err)
-        IF(NUMBER_OF_DIMENSIONS == 2) THEN
-          CALL OC_Field_ParameterSetUpdateElement(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE,OC_FIELD_VALUES_SET_TYPE, &
-            & elementNumber,1,YOUNGS_MODULUS_MIN,err)
-        ELSE
-          CALL OC_Field_ParameterSetUpdateElement(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE,OC_FIELD_VALUES_SET_TYPE, &
-            & elementNumber,1,LAME_LAMBDA_MIN,err)
-          CALL OC_Field_ParameterSetUpdateElement(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE,OC_FIELD_VALUES_SET_TYPE, &
-            & elementNumber,2,LAME_MU_MIN,err)
-        ENDIF
+        CALL OC_Field_ParameterSetUpdateElement(elasticityMaterialsField,OC_FIELD_U_VARIABLE_TYPE,OC_FIELD_VALUES_SET_TYPE, &
+          & elementNumber,1,YOUNGS_MODULUS_MIN,err)
       ENDIF
     ENDDO !elementIdx
 
@@ -1539,13 +1523,17 @@ CONTAINS
     INTEGER(OC_Intg), INTENT(IN) :: componentNumber
     CHARACTER(LEN=*), INTENT(IN) :: name
 
-    INTEGER(OC_Intg) :: xNodeIdx,yNodeIdx
+    INTEGER(OC_Intg) :: xNodeIdx,yNodeIdx,zNodeIdx
 
     WRITE(*,*)
     WRITE(*,'(A," :")') name(1:LEN_TRIM(name))
-    DO yNodeIdx=NUMBER_OF_Y_NODES,1,-1
-      WRITE(*,'(100(I1,X))') (values(xNodeIdx+(yNodeIdx-1)*NUMBER_OF_X_NODES+(componentNumber-1)*NUMBER_OF_NODES),xNodeIdx=1,NUMBER_OF_X_NODES)
-    ENDDO !yNodeIdx
+    DO zNodeIdx=1,NUMBER_OF_Z_NODES
+      WRITE(*,*)
+      DO yNodeIdx=NUMBER_OF_Y_NODES,1,-1
+        WRITE(*,'(100(I1,X))') (values(xNodeIdx+(yNodeIdx-1)*NUMBER_OF_X_NODES+(zNodeIdx-1)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES+ &
+          & (componentNumber-1)*NUMBER_OF_NODES),xNodeIdx=1,NUMBER_OF_X_NODES)
+      ENDDO !yNodeIdx
+    ENDDO !xNodeIdx
 
   END SUBROUTINE PrintArrayNodeIntg
 
@@ -1555,13 +1543,18 @@ CONTAINS
     INTEGER(OC_Intg), INTENT(IN) :: componentNumber
     CHARACTER(LEN=*), INTENT(IN) :: name
 
-    INTEGER(OC_Intg) :: xNodeIdx,yNodeIdx
+    INTEGER(OC_Intg) :: xNodeIdx,yNodeIdx,zNodeIdx
     
     WRITE(*,*)
     WRITE(*,'(A," :")') name(1:LEN_TRIM(name))
-    DO yNodeIdx=NUMBER_OF_Y_NODES,1,-1
-      WRITE(*,'(100(F10.5,X))') (values(xNodeIdx+(yNodeIdx-1)*NUMBER_OF_X_NODES+(componentNumber-1)*NUMBER_OF_NODES),xNodeIdx=1,NUMBER_OF_X_NODES)
-    ENDDO !yNodeIdx
+    DO zNodeIdx=1,NUMBER_OF_Z_NODES
+      WRITE(*,*)
+      DO yNodeIdx=NUMBER_OF_Y_NODES,1,-1
+        WRITE(*,'(100(F10.5,X))') (values(xNodeIdx+(yNodeIdx-1)*NUMBER_OF_X_NODES+ &
+          & (zNodeIdx-1)*NUMBER_OF_X_NODES*NUMBER_OF_Y_NODES+ &
+          & (componentNumber-1)*NUMBER_OF_NODES),xNodeIdx=1,NUMBER_OF_X_NODES)
+      ENDDO !yNodeIdx
+    ENDDO !zNodeIdx
 
   END SUBROUTINE PrintArrayNodeRP
 
@@ -1571,13 +1564,18 @@ CONTAINS
     INTEGER(OC_Intg), INTENT(IN) :: componentNumber
     CHARACTER(LEN=*), INTENT(IN) :: name
 
-    INTEGER(OC_Intg) :: xElementIdx,yElementIdx
+    INTEGER(OC_Intg) :: xElementIdx,yElementIdx,zElementIdx
 
     WRITE(*,*)
     WRITE(*,'(A," :")') name(1:LEN_TRIM(name))
-    DO yElementIdx=NUMBER_OF_Y_ELEMENTS,1,-1
-      WRITE(*,'(100(I1,X))') (values(xElementIdx+(yElementIdx-1)*NUMBER_OF_X_ELEMENTS+(componentNumber-1)*NUMBER_OF_ELEMENTS),xElementIdx=1,NUMBER_OF_X_ELEMENTS)
-    ENDDO !yElementIdx
+    DO zElementIdx=1,MAX(NUMBER_OF_Z_ELEMENTS,1)
+      WRITE(*,*)
+      DO yElementIdx=NUMBER_OF_Y_ELEMENTS,1,-1
+        WRITE(*,'(100(I1,X))') (values(xElementIdx+(yElementIdx-1)*NUMBER_OF_X_ELEMENTS+ &
+          & (zElementIdx-1)*NUMBER_OF_X_ELEMENTS+NUMBER_OF_Y_ELEMENTS+ &
+          & (componentNumber-1)*NUMBER_OF_ELEMENTS),xElementIdx=1,NUMBER_OF_X_ELEMENTS)
+      ENDDO !yElementIdx
+    ENDDO !zElementIdx
     
   END SUBROUTINE PrintArrayElementIntg
 
@@ -1587,13 +1585,18 @@ CONTAINS
     INTEGER(OC_Intg), INTENT(IN) :: componentNumber
     CHARACTER(LEN=*), INTENT(IN) :: name
 
-    INTEGER(OC_Intg) :: xElementIdx,yElementIdx
+    INTEGER(OC_Intg) :: xElementIdx,yElementIdx,zElementIdx
     
     WRITE(*,*)
     WRITE(*,'(A," :")') name(1:LEN_TRIM(name))
-    DO yElementIdx=NUMBER_OF_Y_ELEMENTS,1,-1
-      WRITE(*,'(100(F10.5,X))') (values(xElementIdx+(yElementIdx-1)*NUMBER_OF_X_ELEMENTS+(componentNumber-1)*NUMBER_OF_ELEMENTS),xElementIdx=1,NUMBER_OF_X_ELEMENTS)
-    ENDDO !yElementIdx
+    DO zElementIdx=1,MAX(NUMBER_OF_Z_ELEMENTS,1)
+      WRITE(*,*)
+      DO yElementIdx=NUMBER_OF_Y_ELEMENTS,1,-1
+        WRITE(*,'(100(F10.5,X))') (values(xElementIdx+(yElementIdx-1)*NUMBER_OF_X_ELEMENTS+ &
+          & (zElementIdx-1)*NUMBER_OF_X_ELEMENTS*NUMBER_OF_Y_ELEMENTS+ &
+          & (componentNumber-1)*NUMBER_OF_ELEMENTS),xElementIdx=1,NUMBER_OF_X_ELEMENTS)
+      ENDDO !yElementIdx
+    ENDDO !zElementIdx
 
   END SUBROUTINE PrintArrayElementRP
 
