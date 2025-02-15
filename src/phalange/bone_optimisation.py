@@ -19,31 +19,32 @@ import meshio
 from opencmiss.opencmiss import OpenCMISS_Python as oc
  
 def OutputFields(filename):
-
+     
     # Output .ex files
     fields = oc.Fields()
     fields.CreateRegion(region)
-    fields.NodesExport(filename,"FORTRAN")
-    fields.ElementsExport(filename,"FORTRAN")
+    #fields.NodesExport(filename,"FORTRAN")
+    #fields.ElementsExport(filename,"FORTRAN")
     fields.Finalise()
 
     # Setup .vtk output
     #outputMesh = outputRegion.MeshGet(outputRegion,MESH_USER_NUMBER)
     outputNodes = oc.MeshNodes()
     mesh.NodesGet(1,outputNodes)
-    outputNumberOfNodes = outputNodes.NumberOfNodesGet()
+    #outputNumberOfNodes = outputNodes.NumberOfNodesGet() 
+    outputNumberOfNodes = decomposition.NumberOfNodesGet(1)
     outputNumberOfDimensions = coordinateSystem.DimensionGet()
 
     outputNumberOfNodeComponents = outputNumberOfDimensions*2
 
     outputMeshElements = oc.MeshElements()
     elementBasis = oc.Basis()
-    outputNumberOfElements = mesh.NumberOfElementsGet()
+    #outputNumberOfElements = mesh.NumberOfElementsGet()
     mesh.ElementsGet(1,outputMeshElements)
     outputNumberOfElementComponents = 5+2*numberOfVoigtComponents+2+3
-    
-    outputFileName = filename + "_solution.vtk"
-    
+
+    outputNumberOfElements = decomposition.NumberOfElementsGet()
+       
     nodesList = [
         [0 for componentIdx in range(0,outputNumberOfNodeComponents)] for nodeIdx in range(0,outputNumberOfNodes)
     ]
@@ -53,161 +54,168 @@ def OutputFields(filename):
 
     # Get node data
     for nodeIdx in range(0, outputNumberOfNodes):
-        nodeNumber = nodeIdx + 1
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            nodeGeometryX = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                 oc.FieldParameterSetTypes.VALUES,
-                                                                 1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                 nodeNumber,1)
-            nodeGeometryY = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                 oc.FieldParameterSetTypes.VALUES,
-                                                                 1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                 nodeNumber,2) 
-            nodeGeometryZ = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                 oc.FieldParameterSetTypes.VALUES,
-                                                                 1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                 nodeNumber,3)
-            nodeDisplacementX = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                               oc.FieldParameterSetTypes.VALUES,
-                                                                               1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                               nodeNumber,1)
-            nodeDisplacementY = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                               oc.FieldParameterSetTypes.VALUES,
-                                                                               1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                               nodeNumber,2)
-            nodeDisplacementZ = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                               oc.FieldParameterSetTypes.VALUES,
-                                                                               1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                               nodeNumber,3)
-            nodeTractionX = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
+        #nodeNumber = nodeIdx + 1
+        nodeNumber = decomposition.NodeNumberGet(1,nodeIdx+1)
+        #nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
+        #if (nodeDomain == computationalNodeNumber):
+        nodeGeometryX = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                             oc.FieldParameterSetTypes.VALUES,
+                                                             1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                             nodeNumber,1)
+        nodeGeometryY = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                             oc.FieldParameterSetTypes.VALUES,
+                                                             1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                             nodeNumber,2) 
+        nodeGeometryZ = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                             oc.FieldParameterSetTypes.VALUES,
+                                                             1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                             nodeNumber,3)
+        nodeDisplacementX = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
                                                                            oc.FieldParameterSetTypes.VALUES,
                                                                            1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
                                                                            nodeNumber,1)
-            nodeTractionY = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
+        nodeDisplacementY = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
                                                                            oc.FieldParameterSetTypes.VALUES,
                                                                            1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
                                                                            nodeNumber,2)
-            nodeTractionZ = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
+        nodeDisplacementZ = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
                                                                            oc.FieldParameterSetTypes.VALUES,
                                                                            1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
                                                                            nodeNumber,3)
-            nodePhi = diffusionDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                    1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                    nodeNumber,1)
-            nodeDiffusionSource = diffusionSourceField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                             oc.FieldParameterSetTypes.VALUES,
-                                                                             1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                             nodeNumber,1)
-            nodeTDN = tdField.ParameterSetGetNodeDP(oc.FieldVariableTypes.V,
-                                                    oc.FieldParameterSetTypes.VALUES,
-                                                    1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                    nodeNumber,1)             
-            nodesList[nodeIdx] = [
-                nodeNumber,
-                nodeGeometryX,
-                nodeGeometryY,
-                nodeGeometryZ,
-                nodeDisplacementX,
-                nodeDisplacementY,
-                nodeDisplacementZ,
-                nodeTractionX,
-                nodeTractionY,
-                nodeTractionZ,
-                nodePhi,
-                nodeDiffusionSource,
-                nodeTDN
-            ]
+        nodeTractionX = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
+                                                                       oc.FieldParameterSetTypes.VALUES,
+                                                                       1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                       nodeNumber,1)
+        nodeTractionY = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
+                                                                       oc.FieldParameterSetTypes.VALUES,
+                                                                       1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                       nodeNumber,2)
+        nodeTractionZ = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
+                                                                       oc.FieldParameterSetTypes.VALUES,
+                                                                       1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                       nodeNumber,3)
+        nodePhi = diffusionDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                nodeNumber,1)
+        nodeDiffusionSource = diffusionSourceField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                                         oc.FieldParameterSetTypes.VALUES,
+                                                                         1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                         nodeNumber,1)
+        nodeTDN = tdField.ParameterSetGetNodeDP(oc.FieldVariableTypes.V,
+                                                oc.FieldParameterSetTypes.VALUES,
+                                                1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                nodeNumber,1)             
+        nodesList[nodeIdx] = [
+            nodeNumber,
+            nodeGeometryX,
+            nodeGeometryY,
+            nodeGeometryZ,
+            nodeDisplacementX,
+            nodeDisplacementY,
+            nodeDisplacementZ,
+            nodeTractionX,
+            nodeTractionY,
+            nodeTractionZ,
+            nodePhi,
+            nodeDiffusionSource,
+            nodeTDN
+        ]
             
     # Get element data
     for elementIdx in range(0, outputNumberOfElements):
-        elementNumber = elementIdx + 1
-        elementDomain = decomposition.ElementDomainGet(elementNumber)
-        if (elementDomain == computationalNodeNumber):
-            outputMeshElements.BasisGet(elementNumber,elementBasis)
-            numberOfLocalNodes = elementBasis.NumberOfLocalNodesGet()
-            elementNodes = outputMeshElements.NodesGet(elementNumber,numberOfLocalNodes)
-            elementYoungsModulus = elasticityMaterialsField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                     oc.FieldParameterSetTypes.VALUES,
-                                                                                     elementNumber,1)
-            elementPoissonsRatio = elasticityMaterialsField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                      oc.FieldParameterSetTypes.VALUES,
-                                                                                      elementNumber,2)
-            elementCauchyStress11 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt11Component)
-            elementCauchyStress22 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt22Component)
-            elementCauchyStress33 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt33Component)
-            elementCauchyStress12 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt12Component)
-            elementCauchyStress13 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt13Component)
-            elementCauchyStress23 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt23Component)
-            elementSmallStrain11 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt11Component)
-            elementSmallStrain22 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt22Component)
-            elementSmallStrain33 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt33Component)
-            elementSmallStrain12 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt12Component)
-            elementSmallStrain13 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt13Component)
-            elementSmallStrain23 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt23Component)
-            elementElasticWork = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.W,
+        #elementNumber = elementIdx + 1
+        #elementDomain = decomposition.ElementDomainGet(elementNumber)
+        #if (elementDomain == computationalNodeNumber):
+        elementNumber = decomposition.ElementNumberGet(elementIdx+1)
+        
+        elementBasis=oc.Basis()
+        outputMeshElements.BasisGet(elementNumber,elementBasis)
+        numberOfLocalNodes = elementBasis.NumberOfLocalNodesGet()
+        elementNodes = outputMeshElements.NodesGet(elementNumber,numberOfLocalNodes)
+        localElementNodes = [0]*numberOfLocalNodes
+        for localNodeIdx in range(0, numberOfLocalNodes):
+            localElementNodes[localNodeIdx] = decomposition.NodeLocalNumberGet(1,int(elementNodes[localNodeIdx]))
+        elementYoungsModulus = elasticityMaterialsField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
                                                                                  oc.FieldParameterSetTypes.VALUES,
                                                                                  elementNumber,1)
-            elementStructure = structureField.ParameterSetGetElementIntg(oc.FieldVariableTypes.U,
-                                                                         oc.FieldParameterSetTypes.VALUES,
-                                                                         elementNumber,1)
-            elementSED = sedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                           oc.FieldParameterSetTypes.VALUES,
-                                                           elementNumber,1)
-            elementTD = tdField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                         oc.FieldParameterSetTypes.VALUES,
-                                                         elementNumber,1)
-            elementsList[elementIdx] = [
-                elementNumber,
-                elementNodes[0],
-                elementNodes[1],
-                elementNodes[2],
-                elementNodes[3],
-                elementCauchyStress11,
-                elementCauchyStress22,
-                elementCauchyStress33,
-                elementCauchyStress23,
-                elementCauchyStress13,
-                elementCauchyStress12,
-                elementSmallStrain11,
-                elementSmallStrain22,
-                elementSmallStrain33,
-                elementSmallStrain23,
-                elementSmallStrain13,
-                elementSmallStrain12,
-                elementElasticWork,
-                elementYoungsModulus,
-                elementPoissonsRatio,
-                elementStructure,
-                elementSED,
-                elementTD
-            ]
-            
+        elementPoissonsRatio = elasticityMaterialsField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                 oc.FieldParameterSetTypes.VALUES,
+                                                                                 elementNumber,2)
+        elementCauchyStress11 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                                elementNumber,voigt11Component)
+        elementCauchyStress22 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                                elementNumber,voigt22Component)
+        elementCauchyStress33 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                                elementNumber,voigt33Component)
+        elementCauchyStress12 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                                elementNumber,voigt12Component)
+        elementCauchyStress13 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                                elementNumber,voigt13Component)
+        elementCauchyStress23 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                                elementNumber,voigt23Component)
+        elementSmallStrain11 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
+                                                                               oc.FieldParameterSetTypes.VALUES,
+                                                                               elementNumber,voigt11Component)
+        elementSmallStrain22 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
+                                                                               oc.FieldParameterSetTypes.VALUES,
+                                                                               elementNumber,voigt22Component)
+        elementSmallStrain33 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
+                                                                               oc.FieldParameterSetTypes.VALUES,
+                                                                               elementNumber,voigt33Component)
+        elementSmallStrain12 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
+                                                                               oc.FieldParameterSetTypes.VALUES,
+                                                                               elementNumber,voigt12Component)
+        elementSmallStrain13 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
+                                                                            oc.FieldParameterSetTypes.VALUES,
+                                                                               elementNumber,voigt13Component)
+        elementSmallStrain23 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
+                                                                               oc.FieldParameterSetTypes.VALUES,
+                                                                               elementNumber,voigt23Component)
+        elementElasticWork = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.W,
+                                                                             oc.FieldParameterSetTypes.VALUES,
+                                                                             elementNumber,1)
+        elementStructure = structureField.ParameterSetGetElementIntg(oc.FieldVariableTypes.U,
+                                                                     oc.FieldParameterSetTypes.VALUES,
+                                                                     elementNumber,1)
+        elementSED = sedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                       oc.FieldParameterSetTypes.VALUES,
+                                                       elementNumber,1)
+        elementTD = tdField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                     oc.FieldParameterSetTypes.VALUES,
+                                                     elementNumber,1)
+        elementsList[elementIdx] = [
+            elementNumber,
+            localElementNodes[0],
+            localElementNodes[1],
+            localElementNodes[2],
+            localElementNodes[3],
+            elementCauchyStress11,
+            elementCauchyStress22,
+            elementCauchyStress33,
+            elementCauchyStress23,
+            elementCauchyStress13,
+            elementCauchyStress12,
+            elementSmallStrain11,
+            elementSmallStrain22,
+            elementSmallStrain33,
+            elementSmallStrain23,
+            elementSmallStrain13,
+            elementSmallStrain12,
+            elementElasticWork,
+            elementYoungsModulus,
+            elementPoissonsRatio,
+            elementStructure,
+            elementSED,
+            elementTD
+        ]
+        
     nodesList = np.array(nodesList)
     elementsList = np.array(elementsList)
     
@@ -271,12 +279,27 @@ def OutputFields(filename):
         "SED": sed,
         "TD": td,
     }
-    meshio.write(outputFileName,solutionMesh)
+
+    if(computationalNodeNumber==0):
+        parallelFilename = "{baseFName}_solution.pvtu".format(baseFName=filename)
+        pFile = open(parallelFilename,"w")
+        pFile.write("<VTKFile type=\"PUnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n")
+        pFile.write("  <PUnstructuredGrid GhostLevel=\"0\">\n")
+        for rankIdx in range(0,numberOfComputationalNodes):
+            pFile.write("    <Piece Source=\"{baseFName}_solution_{rank:0d}.vtk\"/>\n". \
+                        format(baseFName=filename,rank=rankIdx))
+        pFile.write("  </PUnstructuredGrid>\n")
+        pFile.write("</VTKFile>\n")
+        pFile.close()
+    
+    solutionFilename = "{baseFName}_solution_{rank:0d}.vtk".format(baseFName=filename,rank=computationalNodeNumber)
+    meshio.write(solutionFilename,solutionMesh)
         
     displacedPoints = position + displacement*SCALE_DISPLACEMENT
-    outputFileNameDisplaced = filename + "_displaced.vtk"
+    #outputFileNameDisplaced = filename + "_displaced.vtk"
+    displacedFilename = "{baseFName}_displaced_{rank:0d}.vtk".format(baseFName=filename,rank=computationalNodeNumber)
     solutionMesh.points = displacedPoints
-    meshio.write(outputFileNameDisplaced,solutionMesh)    
+    meshio.write(displacedFilename,solutionMesh)    
 
 #-----------------------------------------------------------------------------------------------------------
 # SET PROBLEM PARAMETERS
@@ -309,8 +332,8 @@ N_VOL_ITERATIONS = 100
 TIME_START = 0.00
 TIME_STEP = 0.05
 
-MAXIMUM_NUMBER_OF_ITERATIONS = 10 # Maximum number of iterations in the main loop
-#MAXIMUM_NUMBER_OF_ITERATIONS = 200 # Maximum number of iterations in the main loop
+#MAXIMUM_NUMBER_OF_ITERATIONS = 10 # Maximum number of iterations in the main loop
+MAXIMUM_NUMBER_OF_ITERATIONS = 200 # Maximum number of iterations in the main loop
 
 DEBUG = True
 #DEBUG = False
@@ -352,7 +375,7 @@ CUBIC_SIMPLEX = 7
  ) = range(1,24)
 
 meshFileName = 'uFE_Phal2_III_qa_aligned_volumetric_extracted'
-bcFileName = 'MSM_GF_simplified_without_weight_comb_force_Phal2_III_manual'
+bcFileName = 'uFE_GF_simplified_without_weight_comb_force_Phal2_III_manual'
 
 # Override defaults with command line arguments if need be
 if len(sys.argv) > 1:
@@ -865,7 +888,7 @@ elasticitySolverEquations.BoundaryConditionsCreateStart(elasticityBoundaryCondit
 dirichletNodesBC = []
 for nodeIdx in dirichletNodes:
     print(nodeIdx)
-    nodeNumber = nodeIdx
+    nodeNumber = int(nodeIdx)
     nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
     if (nodeDomain == computationalNodeNumber):
         # Fix the node in x, y (& z)
