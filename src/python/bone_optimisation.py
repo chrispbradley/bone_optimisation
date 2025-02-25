@@ -8,7 +8,9 @@
 # Multidisc. Optim., 51:1159-1172. DOI:10.1007/s00158-014-1190-z
 #
 
-import sys,os,math
+import sys
+import os
+import math
 import numpy as np
 from mpi4py import MPI
 import meshio
@@ -19,29 +21,34 @@ from opencmiss.opencmiss import OpenCMISS_Python as oc
 def OutputFields(filename):
 
     # Output .ex files
-    fields = oc.Fields()
-    fields.CreateRegion(region)
-    fields.NodesExport(filename,"FORTRAN")
-    fields.ElementsExport(filename,"FORTRAN")
-    fields.Finalise()
+    #fields = oc.Fields()
+    #fields.CreateRegion(region)
+    #fields.NodesExport(filename,"FORTRAN")
+    #fields.ElementsExport(filename,"FORTRAN")
+    #fields.Finalise()
 
     # Setup .vtk output
     #outputMesh = outputRegion.MeshGet(outputRegion,MESH_USER_NUMBER)
-    outputNodes = oc.MeshNodes()
-    mesh.NodesGet(1,outputNodes)
-    outputNumberOfNodes = outputNodes.NumberOfNodesGet()
+    #outputNodes = oc.MeshNodes()
+    #mesh.NodesGet(1,outputNodes)
+    #outputNumberOfNodes = outputNodes.NumberOfNodesGet()
+    outputNumberOfNodes = decomposition.NumberOfNodesGet(1)
     outputNumberOfDimensions = coordinateSystem.DimensionGet()
 
     outputNumberOfNodeComponents = outputNumberOfDimensions*2
 
-    outputMeshElements = oc.MeshElements()
-    elementBasis = oc.Basis()
-    outputNumberOfElements = mesh.NumberOfElementsGet()
-    mesh.ElementsGet(1,outputMeshElements)
-    outputNumberOfElementComponents = 9+2*numberOfVoigtComponents+2+3
-    
-    outputFileName = filename + "_solution.vtk"
-    
+    #outputMeshElements = oc.MeshElements()
+    #elementBasis = oc.Basis()
+    #outputNumberOfElements = mesh.NumberOfElementsGet()
+    #mesh.ElementsGet(1,outputMeshElements)
+
+    outputNumberOfElements = decomposition.NumberOfElementsGet()
+
+    if(NUMBER_OF_DIMENSIONS == 3):
+        outputNumberOfElementComponents = 9+2*numberOfVoigtComponents+2+4
+    else:
+        outputNumberOfElementComponents = 5+2*numberOfVoigtComponents+2+4
+   
     nodesList = [
         [0 for componentIdx in range(0,outputNumberOfNodeComponents)] for nodeIdx in range(0,outputNumberOfNodes)
     ]
@@ -51,145 +58,169 @@ def OutputFields(filename):
 
     # Get node data
     for nodeIdx in range(0, outputNumberOfNodes):
-        nodeNumber = nodeIdx + 1
-        nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
-        if (nodeDomain == computationalNodeNumber):
-            nodeGeometryX = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                 oc.FieldParameterSetTypes.VALUES,
-                                                                 1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                 nodeNumber,1)
-            nodeGeometryY = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                 oc.FieldParameterSetTypes.VALUES,
-                                                                 1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                 nodeNumber,2) 
+        #nodeNumber = nodeIdx + 1
+        #nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
+        #if (nodeDomain == computationalNodeNumber):
+        nodeNumber = decomposition.NodeNumberGet(1,nodeIdx+1)
+        nodeGeometryX = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                             oc.FieldParameterSetTypes.VALUES,
+                                                             1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                             nodeNumber,1)
+        nodeGeometryY = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                             oc.FieldParameterSetTypes.VALUES,
+                                                             1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                             nodeNumber,2)
+        nodeDisplacementX = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                                           oc.FieldParameterSetTypes.VALUES,
+                                                                           1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                           nodeNumber,1)
+        nodeDisplacementY = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                                           oc.FieldParameterSetTypes.VALUES,
+                                                                           1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                           nodeNumber,2)
+        nodeTractionX = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
+                                                                       oc.FieldParameterSetTypes.VALUES,
+                                                                       1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                       nodeNumber,1)
+        nodeTractionY = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
+                                                                       oc.FieldParameterSetTypes.VALUES,
+                                                                       1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                       nodeNumber,2)
+        if(NUMBER_OF_DIMENSIONS == 3):
             nodeGeometryZ = geometricField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
                                                                  oc.FieldParameterSetTypes.VALUES,
                                                                  1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
                                                                  nodeNumber,3)
-            nodeDisplacementX = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                               oc.FieldParameterSetTypes.VALUES,
-                                                                               1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                               nodeNumber,1)
-            nodeDisplacementY = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                               oc.FieldParameterSetTypes.VALUES,
-                                                                               1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                               nodeNumber,2)
             nodeDisplacementZ = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
                                                                                oc.FieldParameterSetTypes.VALUES,
                                                                                1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
                                                                                nodeNumber,3)
-            nodeTractionX = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
-                                                                           oc.FieldParameterSetTypes.VALUES,
-                                                                           1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                           nodeNumber,1)
-            nodeTractionY = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
-                                                                           oc.FieldParameterSetTypes.VALUES,
-                                                                           1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                           nodeNumber,2)
             nodeTractionZ = elasticityDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.T,
                                                                            oc.FieldParameterSetTypes.VALUES,
                                                                            1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
                                                                            nodeNumber,3)
-            nodePhi = diffusionDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                    1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                    nodeNumber,1)
-            nodeDiffusionSource = diffusionSourceField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
-                                                                             oc.FieldParameterSetTypes.VALUES,
-                                                                             1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                                             nodeNumber,1)
-            nodeTDN = tdField.ParameterSetGetNodeDP(oc.FieldVariableTypes.V,
-                                                    oc.FieldParameterSetTypes.VALUES,
-                                                    1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
-                                                    nodeNumber,1)             
-            nodesList[nodeIdx] = [
-                nodeNumber,
-                nodeGeometryX,
-                nodeGeometryY,
-                nodeGeometryZ,
-                nodeDisplacementX,
-                nodeDisplacementY,
-                nodeDisplacementZ,
-                nodeTractionX,
-                nodeTractionY,
-                nodeTractionZ,
-                nodePhi,
-                nodeDiffusionSource,
-                nodeTDN
-            ]
+        else:
+            nodeGeometryZ = 0.0
+            nodeDisplacementZ = 0.0
+            nodeTractionZ = 0.0
+        nodePhi = diffusionDependentField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                nodeNumber,1)
+        nodeDiffusionSource = diffusionSourceField.ParameterSetGetNodeDP(oc.FieldVariableTypes.U,
+                                                                         oc.FieldParameterSetTypes.VALUES,
+                                                                         1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                                         nodeNumber,1)
+        nodeTDN = tdField.ParameterSetGetNodeDP(oc.FieldVariableTypes.V,
+                                                oc.FieldParameterSetTypes.VALUES,
+                                                1,oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,
+                                                nodeNumber,1)             
+        nodesList[nodeIdx] = [
+            nodeNumber,
+            nodeGeometryX,
+            nodeGeometryY,
+            nodeGeometryZ,
+            nodeDisplacementX,
+            nodeDisplacementY,
+            nodeDisplacementZ,
+            nodeTractionX,
+            nodeTractionY,
+            nodeTractionZ,
+            nodePhi,
+            nodeDiffusionSource,
+            nodeTDN
+        ]
             
     # Get element data
     for elementIdx in range(0, outputNumberOfElements):
-        elementNumber = elementIdx + 1
-        elementDomain = decomposition.ElementDomainGet(elementNumber)
-        if (elementDomain == computationalNodeNumber):
-            outputMeshElements.BasisGet(elementNumber,elementBasis)
-            numberOfLocalNodes = elementBasis.NumberOfLocalNodesGet()
-            elementNodes = outputMeshElements.NodesGet(elementNumber,numberOfLocalNodes)
-            elementYoungsModulus = elasticityMaterialsField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                     oc.FieldParameterSetTypes.VALUES,
-                                                                                     elementNumber,1)
-            elementPoissonsRatio = elasticityMaterialsField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                      oc.FieldParameterSetTypes.VALUES,
-                                                                                      elementNumber,2)
-            elementCauchyStress11 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt11Component)
-            elementCauchyStress22 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt22Component)
+        #elementNumber = elementIdx + 1
+        #elementDomain = decomposition.ElementDomainGet(elementNumber)
+        #if (elementDomain == computationalNodeNumber):
+        elementNumber = decomposition.ElementNumberGet(elementIdx+1)
+        elementBasis = oc.Basis()
+        decomposition.ElementBasisGet(1,elementNumber,elementBasis)
+        numberOfLocalNodes = elementBasis.NumberOfLocalNodesGet()
+        
+        elementNodes = [0]*numberOfLocalNodes
+        localElementNodes = [0]*numberOfLocalNodes
+        for localNodeIdx in range(0,numberOfLocalNodes):
+            elementNodes[localNodeIdx] = decomposition.ElementNodeGet(1,elementNumber,localNodeIdx+1)
+            localElementNodes[localNodeIdx] = decomposition.NodeLocalNumberGet(1,elementNodes[localNodeIdx])
+                                                                               
+        elementYoungsModulus = elasticityMaterialsField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                 oc.FieldParameterSetTypes.VALUES,
+                                                                                 elementNumber,1)
+        elementPoissonsRatio = elasticityMaterialsField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                 oc.FieldParameterSetTypes.VALUES,
+                                                                                 elementNumber,2)
+        elementCauchyStress11 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                                elementNumber,voigt11Component)
+        elementCauchyStress22 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                                elementNumber,voigt22Component)
+        elementCauchyStress12 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                                                oc.FieldParameterSetTypes.VALUES,
+                                                                                elementNumber,voigt12Component)
+        elementSmallStrain11 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
+                                                                               oc.FieldParameterSetTypes.VALUES,
+                                                                               elementNumber,voigt11Component)
+        elementSmallStrain22 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
+                                                                               oc.FieldParameterSetTypes.VALUES,
+                                                                               elementNumber,voigt22Component)
+        elementSmallStrain12 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
+                                                                               oc.FieldParameterSetTypes.VALUES,
+                                                                               elementNumber,voigt12Component)
+        if(NUMBER_OF_DIMENSIONS == 3):                                                                               
             elementCauchyStress33 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
                                                                                     oc.FieldParameterSetTypes.VALUES,
                                                                                     elementNumber,voigt33Component)
-            elementCauchyStress12 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt12Component)
             elementCauchyStress13 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
                                                                                     oc.FieldParameterSetTypes.VALUES,
                                                                                     elementNumber,voigt13Component)
             elementCauchyStress23 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
                                                                                     oc.FieldParameterSetTypes.VALUES,
                                                                                     elementNumber,voigt23Component)
-            elementSmallStrain11 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt11Component)
-            elementSmallStrain22 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt22Component)
             elementSmallStrain33 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt33Component)
-            elementSmallStrain12 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt12Component)
+                                                                                   oc.FieldParameterSetTypes.VALUES,
+                                                                                   elementNumber,voigt33Component)
             elementSmallStrain13 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt13Component)
+                                                                                   oc.FieldParameterSetTypes.VALUES,
+                                                                                   elementNumber,voigt13Component)
             elementSmallStrain23 = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.V,
-                                                                                    oc.FieldParameterSetTypes.VALUES,
-                                                                                    elementNumber,voigt23Component)
-            elementElasticWork = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.W,
-                                                                                 oc.FieldParameterSetTypes.VALUES,
-                                                                                 elementNumber,1)
-            elementStructure = structureField.ParameterSetGetElementIntg(oc.FieldVariableTypes.U,
-                                                                         oc.FieldParameterSetTypes.VALUES,
-                                                                         elementNumber,1)
-            elementSED = sedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                           oc.FieldParameterSetTypes.VALUES,
-                                                           elementNumber,1)
-            elementTD = tdField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
-                                                         oc.FieldParameterSetTypes.VALUES,
-                                                         elementNumber,1)
+                                                                                   oc.FieldParameterSetTypes.VALUES,
+                                                                                   elementNumber,voigt23Component)
+        else:
+            elementCauchyStress33 = 0.0
+            elementCauchyStress13 = 0.0
+            elementCauchyStress23 = 0.0
+            elementSmallStrain33 = 0.0
+            elementSmallStrain13 = 0.0
+            elementSmallStrain23 = 0.0
+        elementElasticWork = elasticityDerivedField.ParameterSetGetElementDP(oc.FieldVariableTypes.W,
+                                                                             oc.FieldParameterSetTypes.VALUES,
+                                                                             elementNumber,1)
+        elementStructure = structureField.ParameterSetGetElementIntg(oc.FieldVariableTypes.U,
+                                                                     oc.FieldParameterSetTypes.VALUES,
+                                                                     elementNumber,1)
+        absElementStructure = abs(elementStructure)
+        elementSED = sedField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                       oc.FieldParameterSetTypes.VALUES,
+                                                       elementNumber,1)
+        elementTD = tdField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
+                                                     oc.FieldParameterSetTypes.VALUES,
+                                                     elementNumber,1)
+        if(NUMBER_OF_DIMENSIONS == 3):
             elementsList[elementIdx] = [
                 elementNumber,
-                elementNodes[0],
-                elementNodes[1],
-                elementNodes[3],
-                elementNodes[2],
-                elementNodes[4],
-                elementNodes[5],
-                elementNodes[7],
-                elementNodes[6],
+                localElementNodes[0],
+                localElementNodes[1],
+                localElementNodes[3],
+                localElementNodes[2],
+                localElementNodes[4],
+                localElementNodes[5],
+                localElementNodes[7],
+                localElementNodes[6],
                 elementCauchyStress11,
                 elementCauchyStress22,
                 elementCauchyStress33,
@@ -206,15 +237,41 @@ def OutputFields(filename):
                 elementYoungsModulus,
                 elementPoissonsRatio,
                 elementStructure,
+                absElementStructure,
                 elementSED,
                 elementTD
             ]
+        else:
+            elementsList[elementIdx] = [
+                elementNumber,
+                localElementNodes[0],
+                localElementNodes[1],
+                localElementNodes[3],
+                localElementNodes[2],
+                elementCauchyStress11,
+                elementCauchyStress22,
+                elementCauchyStress12,
+                elementSmallStrain11,
+                elementSmallStrain22,
+                elementSmallStrain12,
+                elementElasticWork,
+                elementYoungsModulus,
+                elementPoissonsRatio,
+                elementStructure,
+                absElementStructure,
+                elementSED,
+                elementTD
+            ]
+                                                                               
             
     nodesList = np.array(nodesList)
     elementsList = np.array(elementsList)
     
     points = np.array(nodesList[:, 1:4])
-    cells = [("hexahedron", np.array(elementsList)[:, 1:9] - 1)]
+    if(NUMBER_OF_DIMENSIONS==3):
+        cells = [("hexahedron", np.array(elementsList)[:, 1:9] - 1)]
+    else:
+        cells = [("quad", np.array(elementsList)[:, 1:5] - 1)]
 
     # Get values
     position = nodesList[:,1:4]
@@ -224,24 +281,40 @@ def OutputFields(filename):
     diffusionSource = nodesList[:,11]
     tdn = nodesList[:,12]
 
-    cauchyStress11 = elementsList[:,9]
-    cauchyStress22 = elementsList[:,10]
-    cauchyStress33 = elementsList[:,11]
-    cauchyStress23 = elementsList[:,12]
-    cauchyStress13 = elementsList[:,13]
-    cauchyStress12 = elementsList[:,14]
-    smallStrain11 = elementsList[:,15]
-    smallStrain22 = elementsList[:,16]
-    smallStrain33 = elementsList[:,17]
-    smallStrain23 = elementsList[:,18]
-    smallStrain13 = elementsList[:,19]
-    smallStrain12 = elementsList[:,20]
-    elasticWork = elementsList[:,21]
-    youngsModulus = elementsList[:,22]
-    poissonsRatio = elementsList[:,23]
-    structure = elementsList[:,24]
-    sed = elementsList[:,25]
-    td = elementsList[:,26]
+    if(NUMBER_OF_DIMENSIONS==3):                                                                               
+        cauchyStress11 = elementsList[:,9]
+        cauchyStress22 = elementsList[:,10]
+        cauchyStress33 = elementsList[:,11]
+        cauchyStress23 = elementsList[:,12]
+        cauchyStress13 = elementsList[:,13]
+        cauchyStress12 = elementsList[:,14]
+        smallStrain11 = elementsList[:,15]
+        smallStrain22 = elementsList[:,16]
+        smallStrain33 = elementsList[:,17]
+        smallStrain23 = elementsList[:,18]
+        smallStrain13 = elementsList[:,19]
+        smallStrain12 = elementsList[:,20]
+        elasticWork = elementsList[:,21]
+        youngsModulus = elementsList[:,22]
+        poissonsRatio = elementsList[:,23]
+        structure = elementsList[:,24]
+        absStructure = elementsList[:,25]
+        sed = elementsList[:,26]
+        td = elementsList[:,27]
+    else:
+        cauchyStress11 = elementsList[:,5]
+        cauchyStress22 = elementsList[:,6]
+        cauchyStress12 = elementsList[:,7]
+        smallStrain11 = elementsList[:,8]
+        smallStrain22 = elementsList[:,9]
+        smallStrain12 = elementsList[:,10]
+        elasticWork = elementsList[:,11]
+        youngsModulus = elementsList[:,12]
+        poissonsRatio = elementsList[:,13]
+        structure = elementsList[:,14]
+        absStructure = elementsList[:,15]
+        sed = elementsList[:,16]
+        td = elementsList[:,17]
 
     # Write solution mesh
     solutionMesh = meshio.Mesh(points,cells)
@@ -253,32 +326,53 @@ def OutputFields(filename):
         "DiffusionSource": diffusionSource,
         "TDN": tdn,
     }
-    solutionMesh.cell_data = {
-        "CauchyStress11": cauchyStress11,
-        "CauchyStress22": cauchyStress22,
-        "CauchyStress33": cauchyStress33,
-        "CauchyStress23": cauchyStress23,
-        "CauchyStress13": cauchyStress13,
-        "CauchyStress12": cauchyStress12,
-        "SmallStrain11": smallStrain11,
-        "SmallStrain22": smallStrain22,
-        "SmallStrain33": smallStrain33,
-        "SmallStrain23": smallStrain23,
-        "SmallStrain13": smallStrain13,
-        "SmallStrain12": smallStrain12,
-        "ElasticWork": elasticWork,
-        "YoungsModulus": youngsModulus,
-        "PoissonsRatio": poissonsRatio,
-        "Structure": structure,
-        "SED": sed,
-        "TD": td,
-    }
-    meshio.write(outputFileName,solutionMesh)
+    if(NUMBER_OF_DIMENSIONS==3):
+        solutionMesh.cell_data = {
+            "CauchyStress11": cauchyStress11,
+            "CauchyStress22": cauchyStress22,
+            "CauchyStress33": cauchyStress33,
+            "CauchyStress23": cauchyStress23,
+            "CauchyStress13": cauchyStress13,
+            "CauchyStress12": cauchyStress12,
+            "SmallStrain11": smallStrain11,
+            "SmallStrain22": smallStrain22,
+            "SmallStrain33": smallStrain33,
+            "SmallStrain23": smallStrain23,
+            "SmallStrain13": smallStrain13,
+            "SmallStrain12": smallStrain12,
+            "ElasticWork": elasticWork,
+            "YoungsModulus": youngsModulus,
+            "PoissonsRatio": poissonsRatio,
+            "Structure": structure,
+            "AbsStructure": absStructure,
+            "SED": sed,
+            "TD": td,
+        }
+    else:
+        solutionMesh.cell_data = {
+            "CauchyStress11": cauchyStress11,
+            "CauchyStress22": cauchyStress22,
+            "CauchyStress12": cauchyStress12,
+            "SmallStrain11": smallStrain11,
+            "SmallStrain22": smallStrain22,
+            "SmallStrain12": smallStrain12,
+            "ElasticWork": elasticWork,
+            "YoungsModulus": youngsModulus,
+            "PoissonsRatio": poissonsRatio,
+            "Structure": structure,
+            "AbsStructure": absStructure,
+            "SED": sed,
+            "TD": td,
+        }
+                                                                               
+
+    solutionFilename = "{baseFName}_solution_{rank:0d}.vtk".format(baseFName=filename,rank=computationalNodeNumber)
+    meshio.write(solutionFilename,solutionMesh)
         
     displacedPoints = position + displacement*SCALE_DISPLACEMENT
-    outputFileNameDisplaced = filename + "_displaced.vtk"
+    displacedFilename = "{baseFName}_displaced_{rank:0d}.vtk".format(baseFName=filename,rank=computationalNodeNumber)
     solutionMesh.points = displacedPoints
-    meshio.write(outputFileNameDisplaced,solutionMesh)
+    meshio.write(displacedFilename,solutionMesh)
     
 def PrintArrayNode(a,component,name):
     if(DEBUG):
@@ -325,6 +419,12 @@ WIDTH = 10.0 # mm
 # Loading case
 CANTILEVER_LOADING_CASE = 1
 SIMPLY_SUPPORTED_LOADING_CASE = 2
+FIXED_CANTILEVER_LOADING_CASE = 3
+
+# Structure field
+STRUCTURE_BONE = 1
+STRUCTURE_NO_BONE = 0
+STRUCTURE_FIXED_BONE = -1
 
 # Boundary condition 
 MAX_FORCE = 0.6666 # N.mm^-2
@@ -349,8 +449,8 @@ N_VOL_ITERATIONS = 100
 TIME_START = 0.00
 TIME_STEP = 0.05
 
-MAXIMUM_NUMBER_OF_ITERATIONS = 10 # Maximum number of iterations in the main loop
-#MAXIMUM_NUMBER_OF_ITERATIONS = 200 # Maximum number of iterations in the main loop
+#MAXIMUM_NUMBER_OF_ITERATIONS = 10 # Maximum number of iterations in the main loop
+MAXIMUM_NUMBER_OF_ITERATIONS = 200 # Maximum number of iterations in the main loop
 
 #DEBUG = True
 DEBUG = False
@@ -367,10 +467,11 @@ CUBIC_SIMPLEX = 7
 
 # Defaults
 NUMBER_OF_X_ELEMENTS = 10
-NUMBER_OF_Y_ELEMENTS = 6
-NUMBER_OF_Z_ELEMENTS = 6
+NUMBER_OF_Y_ELEMENTS = 7
+NUMBER_OF_Z_ELEMENTS = 0
 LOADING_CASE = CANTILEVER_LOADING_CASE
 #LOADING_CASE = SIMPLY_SUPPORTED_LOADING_CASE
+LOADING_CASE = FIXED_CANTILEVER_LOADING_CASE
 INTERPOLATION_TYPE = LINEAR_LAGRANGE
 #INTERPOLATION_TYPE = LINEAR_SIMPLEX
 
@@ -428,7 +529,9 @@ if (NUMBER_OF_Z_ELEMENTS == 0):
 else:
     NUMBER_OF_DIMENSIONS = 3
 
-if (not ((LOADING_CASE == CANTILEVER_LOADING_CASE) or (LOADING_CASE == SIMPLY_SUPPORTED_LOADING_CASE))):
+if (not ((LOADING_CASE == CANTILEVER_LOADING_CASE) or
+         (LOADING_CASE == SIMPLY_SUPPORTED_LOADING_CASE) or
+         (LOADING_CASE == FIXED_CANTILEVER_LOADING_CASE))):
     sys.exit('ERROR: invalid loading case.')
 
 if (INTERPOLATION_TYPE == LINEAR_LAGRANGE):
@@ -663,11 +766,9 @@ elasticityEquationsSet.MaterialsCreateStart(ELASTICITY_MATERIALS_FIELD_USER_NUMB
 elasticityMaterialsField.LabelSet("ElasticityMaterials")
 elasticityMaterialsField.VariableLabelSet(oc.FieldVariableTypes.U,"ElasticityMaterials")
 elasticityMaterialsField.ComponentInterpolationSet(oc.FieldVariableTypes.U,1,oc.FieldInterpolationTypes.ELEMENT_BASED)
+elasticityMaterialsField.ComponentInterpolationSet(oc.FieldVariableTypes.U,2,oc.FieldInterpolationTypes.ELEMENT_BASED)
 if (NUMBER_OF_DIMENSIONS == 2):
-    elasticityMaterialsField.ComponentInterpolationSet(oc.FieldVariableTypes.U,2,oc.FieldInterpolationTypes.CONSTANT)    
     elasticityMaterialsField.ComponentInterpolationSet(oc.FieldVariableTypes.U,3,oc.FieldInterpolationTypes.CONSTANT)
-else:
-    elasticityMaterialsField.ComponentInterpolationSet(oc.FieldVariableTypes.U,2,oc.FieldInterpolationTypes.ELEMENT_BASED)
 elasticityEquationsSet.MaterialsCreateFinish()
 
 # Initialise the materials field values
@@ -812,6 +913,101 @@ diffusionEquations.OutputTypeSet(oc.EquationsOutputTypes.NONE)
 #diffusionEquations.OutputTypeSet(oc.EquationsOutputTypes.MATRIX)
 #diffusionEquations.OutputTypeSet(oc.EquationsOutputTypes.ELEMENT_MATRIX)
 diffusionEquationsSet.EquationsCreateFinish()
+             
+#-----------------------------------------------------------------------------------------------------------
+# STRUCTURE FIELD
+#-----------------------------------------------------------------------------------------------------------
+
+structureField = oc.Field()
+structureField.CreateStart(STRUCTURE_FIELD_USER_NUMBER,region)
+# Set the type
+structureField.TypeSet(oc.FieldTypes.GENERAL)
+# Set the decomposition
+structureField.DecompositionSet(decomposition)
+# Set the geometric field
+structureField.GeometricFieldSet(geometricField)
+# Set the label
+structureField.LabelSet("Structure")
+# Set the variables
+structureField.NumberOfVariablesSet(1)
+structureField.VariableTypesSet([oc.FieldVariableTypes.U])
+structureField.VariableLabelSet(oc.FieldVariableTypes.U,"Str")
+structureField.DataTypeSet(oc.FieldVariableTypes.U,oc.FieldDataTypes.INTG)
+# Set the components
+structureField.NumberOfComponentsSet(oc.FieldVariableTypes.U,1)
+structureField.ComponentMeshComponentSet(oc.FieldVariableTypes.U,1,1)
+structureField.ComponentInterpolationSet(oc.FieldVariableTypes.U,1,oc.FieldInterpolationTypes.ELEMENT_BASED)
+# Finish the field
+structureField.CreateFinish()
+
+# Initialise the structure field to 1 (all elements in the structure). If you wish to start with holes set the structure
+# field to 0 for those elements. If you wish to have elements that are always bone set the structure field to -1 for
+# those element numbers.
+
+structureField.ComponentValuesInitialiseIntg(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,1,STRUCTURE_BONE)
+
+if(LOADING_CASE == FIXED_CANTILEVER_LOADING_CASE):
+    # Set middle element to be a hole and the two elements above and below to be fixed.
+    middleElement = math.floor(NUMBER_OF_ELEMENTS/2)
+    elementDomain = decomposition.ElementDomainGet(middleElement)
+    if (elementDomain == computationalNodeNumber):
+        structureField.ParameterSetUpdateElementIntg(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
+                                                     middleElement,1,STRUCTURE_NO_BONE)
+    topElement = middleElement + NUMBER_OF_X_ELEMENTS
+    elementDomain = decomposition.ElementDomainGet(topElement)
+    if (elementDomain == computationalNodeNumber):
+        structureField.ParameterSetUpdateElementIntg(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
+                                                     topElement,1,STRUCTURE_FIXED_BONE)
+    bottomElement = middleElement - NUMBER_OF_X_ELEMENTS
+    elementDomain = decomposition.ElementDomainGet(bottomElement)
+    if (elementDomain == computationalNodeNumber):
+        structureField.ParameterSetUpdateElementIntg(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
+                                                     bottomElement,1,STRUCTURE_FIXED_BONE)
+    # Update the structure field    
+    structureField.ParameterSetUpdateStart(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
+    structureField.ParameterSetUpdateFinish(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES)
+        
+#-----------------------------------------------------------------------------------------------------------
+# SED FIELD
+#-----------------------------------------------------------------------------------------------------------
+
+sedField = oc.Field()
+sedField.CreateStart(SED_FIELD_USER_NUMBER,region)
+sedField.LabelSet("StrainEnergyDensity")
+sedField.TypeSet(oc.FieldTypes.GENERAL)
+sedField.DecompositionSet(decomposition)
+sedField.GeometricFieldSet(geometricField)
+sedField.DependentTypeSet(oc.FieldDependentTypes.DEPENDENT)
+sedField.NumberOfVariablesSet(1)
+sedField.VariableTypesSet([oc.FieldVariableTypes.U])
+sedField.VariableLabelSet(oc.FieldVariableTypes.U,"SED")
+sedField.NumberOfComponentsSet(oc.FieldVariableTypes.U,1)
+sedField.ComponentMeshComponentSet(oc.FieldVariableTypes.U,1,1)
+sedField.ComponentInterpolationSet(oc.FieldVariableTypes.U,1,oc.FieldInterpolationTypes.ELEMENT_BASED)
+sedField.CreateFinish()
+
+#-----------------------------------------------------------------------------------------------------------
+# TOPOLOGICAL DERIVATIVE FIELD
+#-----------------------------------------------------------------------------------------------------------
+
+tdField = oc.Field()
+tdField.CreateStart(TD_FIELD_USER_NUMBER,region)
+tdField.LabelSet("TopologicalDerivative")
+tdField.TypeSet(oc.FieldTypes.GENERAL)
+tdField.DecompositionSet(decomposition)
+tdField.GeometricFieldSet(geometricField)
+tdField.DependentTypeSet(oc.FieldDependentTypes.DEPENDENT)
+tdField.NumberOfVariablesSet(2)
+tdField.VariableTypesSet([oc.FieldVariableTypes.U,oc.FieldVariableTypes.V])
+tdField.VariableLabelSet(oc.FieldVariableTypes.U,"TD")
+tdField.VariableLabelSet(oc.FieldVariableTypes.V,"TDN")
+tdField.NumberOfComponentsSet(oc.FieldVariableTypes.U,1)
+tdField.NumberOfComponentsSet(oc.FieldVariableTypes.V,1)
+tdField.ComponentMeshComponentSet(oc.FieldVariableTypes.U,1,1)
+tdField.ComponentMeshComponentSet(oc.FieldVariableTypes.V,1,1)
+tdField.ComponentInterpolationSet(oc.FieldVariableTypes.U,1,oc.FieldInterpolationTypes.ELEMENT_BASED)
+tdField.ComponentInterpolationSet(oc.FieldVariableTypes.V,1,oc.FieldInterpolationTypes.NODE_BASED)
+tdField.CreateFinish()
 
 #-----------------------------------------------------------------------------------------------------------
 # ELASTICITY PROBLEM
@@ -869,11 +1065,11 @@ elasticityProblem.SolverEquationsCreateFinish()
 #-----------------------------------------------------------------------------------------------------------
 # ELASTICITY BOUNDARY CONDITIONS
 #-----------------------------------------------------------------------------------------------------------
-2
+
 elasticityBoundaryConditions = oc.BoundaryConditions()
 elasticitySolverEquations.BoundaryConditionsCreateStart(elasticityBoundaryConditions)
 
-if (LOADING_CASE == CANTILEVER_LOADING_CASE):
+if ((LOADING_CASE == CANTILEVER_LOADING_CASE) or (LOADING_CASE == FIXED_CANTILEVER_LOADING_CASE)):
     if (NUMBER_OF_DIMENSIONS == 2):
         
         #Set the left edge to be built in
@@ -1278,81 +1474,36 @@ for nodeIdx in range(1,numberOfLocalNodes+1):
         diffusionBoundaryConditions.SetNode(diffusionDependentField,oc.FieldVariableTypes.U,1,
                                             oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
                                             oc.BoundaryConditionsTypes.FIXED,0.0)
+
+# Look at the structure field to see if we have any holes or fixed elements
+for elementIdx in range(1,numberOfLocalElements+1):
+    elementNumber = decomposition.ElementNumberGet(elementIdx)
+    elementDomain = decomposition.ElementDomainGet(elementNumber)
+    if(elementDomain == computationalNodeNumber):
+        strValue = structureField.ParameterSetGetElementIntg(oc.FieldVariableTypes.U,
+                                                             oc.FieldParameterSetTypes.VALUES,
+                                                             elementNumber,1)
+        if(strValue == STRUCTURE_NO_BONE or strValue == STRUCTURE_FIXED_BONE):
+            #Loop over the element nodes and set phi to 1.0 as a BC.
+            elementBasis = oc.Basis()
+            decomposition.ElementBasisGet(1,elementNumber,elementBasis)
+            numberOfElementNodes = elementBasis.NumberOfLocalNodesGet()
+            # Find the average value of Phi in the element
+            for localNodeIdx in range(1,numberOfElementNodes+1):
+                nodeNumber = decomposition.ElementNodeGet(1,elementNumber,localNodeIdx)
+                nodeDomain = decomposition.NodeDomainGet(1,nodeNumber)
+                if (nodeDomain == computationalNodeNumber):
+                    if(strValue == STRUCTURE_FIXED_BONE):
+                        diffusionBoundaryConditions.SetNode(diffusionDependentField,oc.FieldVariableTypes.U,1,
+                                                            oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
+                                                            oc.BoundaryConditionsTypes.FIXED,1.0)
+                    else:
+                        diffusionBoundaryConditions.SetNode(diffusionDependentField,oc.FieldVariableTypes.U,1,
+                                                            oc.GlobalDerivativeConstants.NO_GLOBAL_DERIV,nodeNumber,1,
+                                                            oc.BoundaryConditionsTypes.FIXED,0.0)
+  
                 
 diffusionSolverEquations.BoundaryConditionsCreateFinish()
-                
-#-----------------------------------------------------------------------------------------------------------
-# STRUCTURE FIELD
-#-----------------------------------------------------------------------------------------------------------
-
-structureField = oc.Field()
-structureField.CreateStart(STRUCTURE_FIELD_USER_NUMBER,region)
-# Set the type
-structureField.TypeSet(oc.FieldTypes.GENERAL)
-# Set the decomposition
-structureField.DecompositionSet(decomposition)
-# Set the geometric field
-structureField.GeometricFieldSet(geometricField)
-# Set the label
-structureField.LabelSet("Structure")
-# Set the variables
-structureField.NumberOfVariablesSet(1)
-structureField.VariableTypesSet([oc.FieldVariableTypes.U])
-structureField.VariableLabelSet(oc.FieldVariableTypes.U,"Str")
-structureField.DataTypeSet(oc.FieldVariableTypes.U,oc.FieldDataTypes.INTG)
-# Set the components
-structureField.NumberOfComponentsSet(oc.FieldVariableTypes.U,1)
-structureField.ComponentMeshComponentSet(oc.FieldVariableTypes.U,1,1)
-structureField.ComponentInterpolationSet(oc.FieldVariableTypes.U,1,oc.FieldInterpolationTypes.ELEMENT_BASED)
-# Finish the field
-structureField.CreateFinish()
-
-# Initialise the structure field to 1 (all elements in the structure). If you wish to start with holes set the hole
-# element numbers to 0.
-structureField.ComponentValuesInitialiseIntg(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,1,1)
-
-#-----------------------------------------------------------------------------------------------------------
-# SED FIELD
-#-----------------------------------------------------------------------------------------------------------
-
-sedField = oc.Field()
-sedField.CreateStart(SED_FIELD_USER_NUMBER,region)
-sedField.LabelSet("StrainEnergyDensity")
-sedField.TypeSet(oc.FieldTypes.GENERAL)
-sedField.DecompositionSet(decomposition)
-sedField.GeometricFieldSet(geometricField)
-sedField.DependentTypeSet(oc.FieldDependentTypes.DEPENDENT)
-sedField.NumberOfVariablesSet(1)
-sedField.VariableTypesSet([oc.FieldVariableTypes.U])
-sedField.VariableLabelSet(oc.FieldVariableTypes.U,"SED")
-sedField.NumberOfComponentsSet(oc.FieldVariableTypes.U,1)
-sedField.ComponentMeshComponentSet(oc.FieldVariableTypes.U,1,1)
-sedField.ComponentInterpolationSet(oc.FieldVariableTypes.U,1,oc.FieldInterpolationTypes.ELEMENT_BASED)
-sedField.CreateFinish()
-
-#-----------------------------------------------------------------------------------------------------------
-# TOPOLOGICAL DERIVATIVE FIELD
-#-----------------------------------------------------------------------------------------------------------
-
-tdField = oc.Field()
-tdField.CreateStart(TD_FIELD_USER_NUMBER,region)
-tdField.LabelSet("TopologicalDerivative")
-tdField.TypeSet(oc.FieldTypes.GENERAL)
-tdField.DecompositionSet(decomposition)
-tdField.GeometricFieldSet(geometricField)
-tdField.DependentTypeSet(oc.FieldDependentTypes.DEPENDENT)
-tdField.NumberOfVariablesSet(2)
-tdField.VariableTypesSet([oc.FieldVariableTypes.U,oc.FieldVariableTypes.V])
-tdField.VariableLabelSet(oc.FieldVariableTypes.U,"TD")
-tdField.VariableLabelSet(oc.FieldVariableTypes.V,"TDN")
-tdField.NumberOfComponentsSet(oc.FieldVariableTypes.U,1)
-tdField.NumberOfComponentsSet(oc.FieldVariableTypes.V,1)
-tdField.ComponentMeshComponentSet(oc.FieldVariableTypes.U,1,1)
-tdField.ComponentMeshComponentSet(oc.FieldVariableTypes.V,1,1)
-tdField.ComponentInterpolationSet(oc.FieldVariableTypes.U,1,oc.FieldInterpolationTypes.ELEMENT_BASED)
-tdField.ComponentInterpolationSet(oc.FieldVariableTypes.V,1,oc.FieldInterpolationTypes.NODE_BASED)
-tdField.CreateFinish()
-
 #-----------------------------------------------------------------------------------------------------------
 # ELASTICITY AND DIFFUSION MAIN WORKFLOW
 #-----------------------------------------------------------------------------------------------------------
@@ -1366,7 +1517,7 @@ for elementIdx in range(1,numberOfLocalElements+1):
     strValue = structureField.ParameterSetGetElementIntg(oc.FieldVariableTypes.U,
                                                          oc.FieldParameterSetTypes.VALUES,
                                                          elementNumber,1)
-    rankStrSum = rankStrSum + float(strValue)
+    rankStrSum = rankStrSum + float(abs(strValue))
 
 # Reduce sum across the ranks
 strSum = MPI.COMM_WORLD.allreduce(rankStrSum,op=MPI.SUM)
@@ -1520,19 +1671,19 @@ while continueLoop:
                                                              oc.FieldParameterSetTypes.VALUES,
                                                              elementNumber,1)
 
-        strainEnergyDensity=(YOUNGS_MODULUS_MIN+float(strValue)*(YOUNGS_MODULUS-YOUNGS_MODULUS_MIN))*strainEnergy
+        strainEnergyDensity=(YOUNGS_MODULUS_MIN+float(abs(strValue))*(YOUNGS_MODULUS-YOUNGS_MODULUS_MIN))*strainEnergy
         
         # Store the strain energy density value 
         sedField.ParameterSetUpdateElementDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
                                              elementNumber,1,strainEnergyDensity)
                 
-        topologicalDerivative = (YOUNGS_MODULUS_MIN+float(strValue)*(YOUNGS_MODULUS-YOUNGS_MODULUS_MIN))*float(energy[0])
+        topologicalDerivative = (YOUNGS_MODULUS_MIN+float(abs(strValue))*(YOUNGS_MODULUS-YOUNGS_MODULUS_MIN))*float(energy[0])
                 
         # Store the topological derivative value 
         tdField.ParameterSetUpdateElementDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
                                             elementNumber,1,topologicalDerivative)
                 
-        rankStrSum = rankStrSum + float(strValue)
+        rankStrSum = rankStrSum + float(abs(strValue))
         rankSEDSum = rankSEDSum + strainEnergyDensity
         rankObjectiveSum = rankObjectiveSum + strainEnergy
                 
@@ -1668,7 +1819,7 @@ while continueLoop:
         # If the average phi in the elmeent is less than zero remove the element
         if (averagePhi < 0.0):
             structureField.ParameterSetUpdateElementIntg(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
-                                                         elementNumber,1,0)
+                                                         elementNumber,1,STRUCTURE_NO_BONE)
             elasticityMaterialsField.ParameterSetUpdateElementDP(oc.FieldVariableTypes.U,oc.FieldParameterSetTypes.VALUES,
                                                                  elementNumber,1,YOUNGS_MODULUS_MIN)
             

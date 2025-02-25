@@ -130,12 +130,14 @@ def OutputFields(filename):
         elementNumber = decomposition.ElementNumberGet(elementIdx+1)
         
         elementBasis=oc.Basis()
-        outputMeshElements.BasisGet(elementNumber,elementBasis)
+        decomposition.ElementBasisGet(1,elementNumber,elementBasis)
         numberOfLocalNodes = elementBasis.NumberOfLocalNodesGet()
         elementNodes = outputMeshElements.NodesGet(elementNumber,numberOfLocalNodes)
+        elementNodes = [0]*numberOfLocalNodes
         localElementNodes = [0]*numberOfLocalNodes
         for localNodeIdx in range(0, numberOfLocalNodes):
-            localElementNodes[localNodeIdx] = decomposition.NodeLocalNumberGet(1,int(elementNodes[localNodeIdx]))
+            elementNodes[localNodeIdx] = decomposition.ElementNodeGet(1,elementNumber,localNodeIdx+1)
+            localElementNodes[localNodeIdx] = decomposition.NodeLocalNumberGet(1,elementNodes[localNodeIdx])
         elementYoungsModulus = elasticityMaterialsField.ParameterSetGetElementDP(oc.FieldVariableTypes.U,
                                                                                  oc.FieldParameterSetTypes.VALUES,
                                                                                  elementNumber,1)
